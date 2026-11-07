@@ -1,0 +1,29 @@
+{
+  "title": {
+    "word": ["Nalo", "gix"],
+    "line": "Notarial payment-order applications from two Excel exports, on Windows, a phone and Android",
+    "chips": ["Word templates kept intact", "Checks before printing", "Works offline"],
+    "stack": "ELECTRON · JAVASCRIPT · PWA · CAPACITOR · ANDROID"
+  },
+  "frames": [
+    { "shot": "d01-loaded", "title": "Two exports in, cases out", "text": "The case list and the invoice list are joined on load: 240 fictional cases and 1,377 invoices, checked at once." },
+    { "shot": "d02-warnings", "title": "Problems surface on their own", "text": "Five cases need a look: invoices that do not add up, a case without invoices, a customer code used twice." },
+    { "shot": "d03-company", "title": "Companies are recognised", "text": "A tax number in the ЕМБГ column marks a company, so it gets the standard template, never „ЕМБГ“ before a tax number." },
+    { "shot": "d04-preview", "title": "The document, before it exists", "text": "The preview fills the Word template in place, keeps its formatting and marks every value that came from the data." },
+    { "shot": "d05-edit", "title": "Fix it without touching Excel", "text": "A correction is kept in the app and flagged in the table and the report. The source file stays as it was." },
+    { "shot": "d06-rules", "title": "Rules choose the cases", "text": "A minimum debt of 6,000 ден. and „skip cases without invoices“ select 222 of the 240." },
+    { "shot": "d07-analytics", "title": "See where the debt is", "text": "Debt by place, by size and by month. A click on a place filters the table." },
+    { "shot": "d08-generated", "title": "Generate and print", "text": "{selected} Word files, one combined document for printing and an Excel report, in {seconds} seconds." },
+    { "shot": "d10-palette-dark", "title": "Ctrl+K, light or dark", "text": "Find a case by number, name or invoice, or run any command. The theme follows the system or your choice." },
+    { "phones": ["demo-cases", "demo-sheet", "demo-generated"], "title": "The same engine on a phone", "text": "The mobile app works offline and its documents are byte-identical to the desktop's. On Android the ZIP goes to the share sheet." }
+  ],
+  "end": {
+    "facts": [
+      "240 of 240 documents identical on desktop and mobile",
+      "48 of 48 mobile checks · 16 of 16 Android checks",
+      "(PROGRESS.md, Measured results)"
+    ],
+    "repo": "github.com/bojanpetkovski18/npn-studio",
+    "note": "Built with AI assistance · All data is fictional"
+  }
+}
