@@ -1,0 +1,18 @@
+{
+  "appId": "mk.nalogix.app",
+  "appName": "Nalogix",
+  "webDir": "mobile/dist",
+  "android": {
+    "path": "mobile/android",
+    "allowMixedContent": false,
+    "captureInput": true
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css"
+    }
+  }
+}
