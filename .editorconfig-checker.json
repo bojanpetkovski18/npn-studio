@@ -1,9 +1,11 @@
 {
   "Exclude": [
-    "package-lock\.json$",
-    "\.(png|ico|jar|xls|docx)$",
-    "^mobile/android/gradlew(\.bat)?$",
+    "package-lock\\.json$",
+    "\\.(png|ico|jar|xls|docx)$",
+    "^mobile/android/gradlew(\\.bat)?$",
     "^mobile/android/gradle/",
+    "^mobile/android/app/capacitor\\.build\\.gradle$",
+    "^mobile/android/capacitor\\.settings\\.gradle$",
     "^mobile/android/app/src/(androidTest|test)/",
     "^mobile/android/app/src/main/res/xml/"
   ]

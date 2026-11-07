@@ -324,11 +324,11 @@ function renderTemplates() {
     const title = kind === 'embg' ? 'Шаблон со ЕМБГ' : 'Стандарден шаблон';
     $(`#tpl-${kind}`).innerHTML = t
       ? `<div class="tpl-ico ${kind === 'embg' ? 'embg' : ''}">W</div>
-         <div style="min-width:0"><div class="tpl-title">${title}</div><div class="tpl-name" title="${esc(t.filePath)}">${esc(t.name)}</div>
-         <div class="tpl-ph" title="${esc(t.placeholders.join(', '))}">${t.placeholders.length} полиња</div></div>
-         <button class="small-btn" data-k="${kind}">Промени</button>`
+        <div style="min-width:0"><div class="tpl-title">${title}</div><div class="tpl-name" title="${esc(t.filePath)}">${esc(t.name)}</div>
+        <div class="tpl-ph" title="${esc(t.placeholders.join(', '))}">${t.placeholders.length} полиња</div></div>
+        <button class="small-btn" data-k="${kind}">Промени</button>`
       : `<div class="tpl-ico missing">W</div><div><div class="tpl-title">${title}</div><div class="tpl-name" style="color:var(--text-3)">Не е избран</div></div>
-         <button class="small-btn" data-k="${kind}">Избери</button>`;
+        <button class="small-btn" data-k="${kind}">Избери</button>`;
   }
   $$('.tpl .small-btn').forEach((b) => b.onclick = () => setTemplate(b.dataset.k, () => api.pickTemplate(b.dataset.k)));
   $('#datumWrap').hidden = !Object.values(S.templates).some((t) => t && t.placeholders.includes('DATUM'));
