@@ -1,0 +1,98 @@
+/* ===================== Nalogix themes =====================
+   Light and dark palettes, tuned for WCAG AA contrast on their surfaces.
+   Loaded last: overrides tokens from styles.css. */
+
+:root {
+  /* light */
+  --bg: rgba(243, 244, 248, 0.84);
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-solid: #ffffff;
+  --surface-2: rgba(246, 247, 251, 0.9);
+  --hover: rgba(20, 24, 40, 0.05);
+  --line: rgba(20, 24, 40, 0.10);
+  --line-strong: rgba(20, 24, 40, 0.18);
+  --text: #14161d;
+  --text-2: #4a4f5e;   /* 8.0:1 on white */
+  --text-3: #686d7d;   /* 5.1:1 on white (was 3.3:1) */
+  --accent: #3552f0;
+  --accent-2: #6d43f0;
+  --accent-soft: rgba(53, 82, 240, 0.10);
+  --accent-text: #2440d0;
+  --ok: #0c7d4d;   --ok-soft: rgba(12, 125, 77, 0.11);
+  --warn: #9a5b00; --warn-soft: rgba(214, 140, 0, 0.15);
+  --err: #c42f2f;  --err-soft: rgba(196, 47, 47, 0.10);
+  --focus: 0 0 0 2px var(--surface-solid), 0 0 0 4px var(--accent);
+}
+
+:root[data-theme="dark"] {
+  --bg: rgba(18, 19, 26, 0.74);
+  --surface: rgba(36, 38, 50, 0.76);
+  --surface-solid: #22242f;
+  --surface-2: rgba(255, 255, 255, 0.045);
+  --hover: rgba(255, 255, 255, 0.06);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.17);
+  --text: #eeeef4;
+  --text-2: #b4b8c8;   /* 8.4:1 on #22242f */
+  --text-3: #8f94a8;   /* 5.0:1 (was 3.9:1) */
+  --accent: #7d94ff;
+  --accent-2: #a98bff;
+  --accent-soft: rgba(125, 148, 255, 0.15);
+  --accent-text: #aebcff;
+  --ok: #45d396;   --ok-soft: rgba(69, 211, 150, 0.13);
+  --warn: #ffb54d; --warn-soft: rgba(255, 181, 77, 0.13);
+  --err: #ff7272;  --err-soft: rgba(255, 114, 114, 0.13);
+  --focus: 0 0 0 2px var(--surface-solid), 0 0 0 4px var(--accent);
+}
+
+/* Without Mica (Windows 10 / older Windows 11) the window is opaque: use solid surfaces instead of glass. */
+:root.no-mica { --bg: #eef0f5; --surface: #ffffff; --surface-2: #f6f7fb; }
+:root.no-mica[data-theme="dark"] { --bg: #16171e; --surface: #20222c; --surface-2: #262935; }
+:root.no-mica .panel, :root.no-mica .stat, :root.no-mica .table-card, :root.no-mica .chart-card,
+:root.no-mica .drawer, :root.no-mica .actionbar { backdrop-filter: none; }
+
+/* Smooth theme switch (colours only – never layout) */
+body, .panel, .stat, .table-card, .chart-card, .drawer, .actionbar, .search, .chips, .select, .inp, .tpl,
+.file-list li, .row, .toast, .modal, .palette, .menu, .cmd-trigger, .paper {
+  transition: background-color .25s ease, color .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* Keyboard focus is always visible */
+:where(button, [tabindex], select, a):focus-visible { outline: none; box-shadow: var(--focus) !important; border-radius: 8px; }
+input[type=checkbox]:focus-visible { box-shadow: var(--focus) !important; }
+
+/* Theme menu */
+.menu {
+  position: fixed; z-index: 85; min-width: 220px; padding: 6px; border-radius: 12px;
+  background: var(--surface-solid); box-shadow: var(--shadow-lg); animation: rise .16s ease;
+}
+.menu-title { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); font-weight: 700; padding: 6px 10px 4px; }
+.menu-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 8px; background: none; font-size: 13px; text-align: left; color: var(--text); }
+.menu-item:hover { background: var(--hover); }
+.menu-item.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.menu-item .mi-ico { width: 18px; display: grid; place-items: center; color: var(--text-2); }
+.menu-item.on .mi-ico { color: var(--accent-text); }
+.menu-item .mi-label { flex: 1; }
+.menu-item .mi-check svg { width: 15px; height: 15px; }
+
+/* Files that failed to load */
+.file-list li.has-error { box-shadow: 0 0 0 1px var(--err); background: var(--err-soft); }
+.file-list li.has-error .fmeta { color: var(--err); white-space: normal; }
+.badge.unknown { background: var(--err-soft); color: var(--err); }
+
+/* Light-theme specifics */
+:root:not([data-theme="dark"]) .stat.hero { box-shadow: 0 12px 28px -14px rgba(53, 82, 240, .65); }
+:root:not([data-theme="dark"]) .paper { box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 10px 30px -12px rgba(20, 24, 40, .25), 0 0 0 1px var(--line); }
+:root:not([data-theme="dark"]) mark { background: rgba(255, 196, 0, .45); }
+:root:not([data-theme="dark"]) .row.sel { background: rgba(53, 82, 240, .06); }
+
+/* Dark-theme specifics */
+:root[data-theme="dark"] mark { background: rgba(255, 200, 60, .32); color: #fff; }
+:root[data-theme="dark"] .paper .fill { background: rgba(53, 82, 240, .16); }
+:root[data-theme="dark"] .row.sel { background: rgba(125, 148, 255, .10); }
+:root[data-theme="dark"] .tag.legal { color: #c3b0ff; }
+:root[data-theme="dark"] .small-btn.accent { background: #5872ff; }
+.thead > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
