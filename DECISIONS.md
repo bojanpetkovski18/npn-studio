@@ -68,3 +68,8 @@ Numbered, never renumbered. Each entry: date, decision, why, alternatives, trade
 
 ### D-013 · 2026-11-07 · Branch name given by the owner
 **Decision:** the first milestone branch is `#0-npn-implementation`, as the owner asked, instead of the playbook's `#00nn-…` pattern. Later milestones follow `#00nn-three-to-seven-words`.
+
+### D-014 · 2026-11-07 · Public repository from the first push
+**Decision:** the owner chose to push to the existing public repository instead of starting private (playbook §2, Phase 1).
+**Why:** owner's decision. Before the push: gitleaks over all commits (no leaks), a scan for personal data and local paths (none; only the public GitHub user name in links), commits use the GitHub no-reply e-mail, and only fictional data is tracked (D-006).
+**Trade-offs:** everything pushed is public immediately; the same scans run in CI on every push (`scripts/check.sh repository`).

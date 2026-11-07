@@ -40,7 +40,6 @@ Data: the fictional `samples/` (240 cases, 1 377 invoices) unless stated otherwi
 | Windows exe is unsigned (SmartScreen warning) | code-signing certificate is the owner's decision |
 | `npm audit` moderate advisories in dev-only tooling (Capacitor CLI → `xcode`, electron-builder) | re-check when newer versions are two weeks old |
 | CI has not run yet: it runs once the PR to `dev` exists | owner opens the PR; check CI on the PR and after merge |
-| The GitHub repository is public | the playbook starts repos private – owner to decide (see the PR notes) |
 | No licence chosen | owner's choice before a release (playbook §16) |
 | Real-data checks (the owner's own files) run only locally, never in CI | by design (D-006) |
 | CSP allows `style-src 'unsafe-inline'` (desktop and mobile); scripts are same-origin only | move inline styles to classes, then drop it (polish milestone) |
