@@ -1,0 +1,93 @@
+{
+  "name": "nalogix",
+  "productName": "Nalogix",
+  "version": "2.1.0",
+  "description": "Nalogix — генератор на предлози за нотарски платен налог (Листа на тужби + Ставки по тужби → Word)",
+  "main": "src/main.js",
+  "author": "Bojan Petkovski",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/run.js",
+    "dist": "electron-builder --win portable nsis",
+    "mobile:build": "node mobile/build.mjs",
+    "mobile:dev": "node mobile/build.mjs --dev && node mobile/test/serve.js 5173",
+    "mobile:lan": "node mobile/build.mjs && node mobile/test/serve.js 5173 --lan",
+    "test:all": "node mobile/test/all.js",
+    "android:build": "node mobile/tools/android-build.js",
+    "android:test": "node mobile/test/android.js"
+  },
+  "dependencies": {
+    "jszip": "3.10.2",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/share": "8.0.3",
+    "electron": "44.9.3",
+    "electron-builder": "26.18.0",
+    "esbuild": "0.28.2"
+  },
+  "build": {
+    "appId": "mk.nalogix.app",
+    "productName": "Nalogix",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "!node_modules/xlsx/dist/**",
+      "node_modules/xlsx/dist/cpexcel.js",
+      "!node_modules/xlsx/{bin,types,xlsx.mjs,xlsxworker.js,bower.json,CHANGELOG.md,README.md}",
+      "!node_modules/jszip/{dist,vendor,.github,documentation}/**",
+      "!**/*.{md,map,d.ts,ts}"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "Nalogix.exe"
+    },
+    "electronLanguages": [
+      "en-US",
+      "mk"
+    ],
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "Nalogix-Setup.exe",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Nalogix",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "fileAssociations": [
+      {
+        "ext": "nalogix",
+        "name": "Nalogix проект",
+        "description": "Nalogix проект"
+      }
+    ]
+  }
+}

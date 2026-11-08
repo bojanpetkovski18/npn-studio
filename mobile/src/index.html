@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="mk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self'" />
+  <meta name="theme-color" content="#f3f4f8" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#16171e" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Nalogix" />
+  <meta name="description" content="Предлози за нотарски платен налог — од Листа на тужби и Ставки по тужби до Word документи, директно на телефон." />
+  <title>Nalogix</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="appbar">
+    <img class="appbar-logo" src="icons/icon-192.png" alt="" />
+    <div class="appbar-title">
+      <b>Nalogix</b>
+      <span id="appSub">Нотарски платен налог</span>
+    </div>
+    <button class="install-btn" data-install><span class="ico" data-icon="download"></span>Инсталирај</button>
+    <button class="icon-btn" id="themeBtn" aria-label="Тема"></button>
+  </header>
+
+  <main id="screens">
+    <!-- 1. Податоци -->
+    <section class="screen" id="scr-data" data-title="Податоци" aria-label="Податоци">
+      <div class="hero-card" id="dataHero"></div>
+
+      <div class="card">
+        <div class="card-head"><h2>Excel датотеки</h2><span class="hint" id="filesHint">Листа + Ставки</span></div>
+        <ul class="list" id="fileList"></ul>
+        <label class="btn primary block file-btn">
+          <input type="file" id="excelInput" accept=".xls,.xlsx,.xlsm,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden />
+          <span class="ico" data-icon="plus"></span><span>Додај Excel датотеки</span>
+        </label>
+        <p class="note">Типот („Листа на тужби“ или „Ставки по тужби“) се препознава сам. Сè се обработува на телефонот — ништо не се праќа на интернет.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Word шаблони</h2><span class="hint">се паметат</span></div>
+        <div class="tpl-row" id="tpl-standard"></div>
+        <div class="tpl-row" id="tpl-embg"></div>
+        <label class="field-label">Кој шаблон да се користи</label>
+        <div class="segmented" id="modeSeg" role="radiogroup">
+          <button data-v="auto" role="radio">Паметно</button>
+          <button data-v="standard" role="radio">Стандарден</button>
+          <button data-v="embg" role="radio">Со ЕМБГ</button>
+        </div>
+        <input type="file" id="tplInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
+      </div>
+
+      <button class="btn ghost block danger-text" id="resetBtn" hidden>Исчисти ги сите податоци од телефонот</button>
+    </section>
+
+    <!-- 2. Тужби -->
+    <section class="screen" id="scr-cases" data-title="Тужби" aria-label="Тужби" hidden>
+      <div class="sticky-tools">
+        <div class="search">
+          <span class="ico" data-icon="search"></span>
+          <input id="search" type="search" placeholder="Број, име, адреса, ЕМБГ, фактура…" autocomplete="off" spellcheck="false" enterkeyhint="search" />
+          <button class="icon-btn small" id="searchClear" aria-label="Исчисти" hidden><span class="ico" data-icon="x"></span></button>
+        </div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="list-meta"><span id="listMeta"></span><button class="link-btn" id="selectAllBtn"></button></div>
+      <div class="vlist" id="vlist"><div class="vpad" id="vpad"></div><div id="vrows"></div></div>
+      <div class="empty" id="casesEmpty" hidden></div>
+    </section>
+
+    <!-- 3. Анализа -->
+    <section class="screen" id="scr-stats" data-title="Анализа" aria-label="Анализа" hidden>
+      <div id="statsBody"></div>
+    </section>
+
+    <!-- 4. Генерирај -->
+    <section class="screen" id="scr-gen" data-title="Генерирај" aria-label="Генерирај" hidden>
+      <div id="genBody"></div>
+    </section>
+  </main>
+
+  <nav class="tabbar" id="tabbar" aria-label="Главно мени">
+    <button data-tab="data" class="on"><span class="ico" data-icon="upload"></span><span>Податоци</span></button>
+    <button data-tab="cases"><span class="ico" data-icon="list"></span><span>Тужби</span><i class="badge" id="badgeCases" hidden></i></button>
+    <button data-tab="stats"><span class="ico" data-icon="chart"></span><span>Анализа</span></button>
+    <button data-tab="gen"><span class="ico" data-icon="send"></span><span>Генерирај</span><i class="badge" id="badgeGen" hidden></i></button>
+  </nav>
+
+  <!-- case detail (bottom sheet / full screen) -->
+  <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+  <section class="sheet" id="sheet" aria-modal="true" role="dialog" hidden>
+    <div class="sheet-grip" id="sheetGrip"></div>
+    <header class="sheet-head">
+      <button class="icon-btn" id="sheetClose" aria-label="Затвори"><span class="ico" data-icon="down"></span></button>
+      <div class="sheet-title"><small id="sheetKicker"></small><b id="sheetTitle"></b></div>
+      <button class="icon-btn" id="sheetPrev" aria-label="Претходна"><span class="ico" data-icon="left"></span></button>
+      <button class="icon-btn" id="sheetNext" aria-label="Следна"><span class="ico" data-icon="right"></span></button>
+    </header>
+    <div class="segmented tabs" id="sheetTabs">
+      <button data-t="doc">Документ</button><button data-t="items">Фактури</button><button data-t="edit">Уреди</button><button data-t="checks">Проверки</button>
+    </div>
+    <div class="sheet-body" id="sheetBody"></div>
+    <footer class="sheet-foot"><button class="btn block" id="sheetSelect"></button></footer>
+  </section>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="dialog-host" id="dialog" hidden></div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

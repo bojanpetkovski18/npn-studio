@@ -1,0 +1,33 @@
+# dependencies and build output
+node_modules/
+dist/
+mobile/dist/
+*.log
+
+# local tools downloaded by scripts/install-tools.sh
+.tools/
+
+# environment and signing – never committed (see .env.example, docs/ANDROID.md)
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*release.properties
+
+# REAL DATA PROTECTION: no Excel/Word/PDF/ZIP files except the fictional samples
+*.xls
+*.xlsx
+*.xlsm
+*.docx
+*.doc
+*.pdf
+*.zip
+!samples/*.xls
+!samples/*.docx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

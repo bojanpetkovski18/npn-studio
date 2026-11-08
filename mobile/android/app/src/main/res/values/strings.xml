@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nalogix</string>
+    <string name="title_activity_main">Nalogix</string>
+    <string name="package_name">mk.nalogix.app</string>
+    <string name="custom_url_scheme">mk.nalogix.app</string>
+</resources>
