@@ -31,6 +31,7 @@ Data: the fictional `samples/` (240 cases, 1 377 invoices) unless stated otherwi
 | Shipped dependencies | 0 known vulnerabilities | `npm audit --omit=dev --audit-level=moderate` |
 | All dependencies, high+ | 0 | `npm audit --audit-level=high` |
 | CI `app` job on Linux | 48 of 48, twice in a row (2026-11-08) | `CI=true bash scripts/check.sh app` in an `ubuntu:24.04` container as a non-root user, fresh clone, `xvfb-run` |
+| CI on GitHub (PR run 42498565848, commit e6860ed) | engine, app, repository: all green (2026-11-08); app job 51 s | GitHub Actions jobs API. The first run (7c711da) failed: Chromium's Linux sandbox aborted before the tests; fixed with `--no-sandbox` on Linux CI |
 
 ## Known issues
 
@@ -40,7 +41,7 @@ Data: the fictional `samples/` (240 cases, 1 377 invoices) unless stated otherwi
 | iOS native app not built (needs a Mac) | iPhone users use the PWA after milestone 1 |
 | Windows exe is unsigned (SmartScreen warning) | code-signing certificate is the owner's decision |
 | `npm audit` moderate advisories in dev-only tooling (Capacitor CLI → `xcode`, electron-builder) | re-check when newer versions are two weeks old |
-| First CI run on the PR failed in the `app` job: Chromium's Linux sandbox aborted before the tests started. Fixed (`--no-sandbox` on the command line on Linux CI) and verified in an Ubuntu 24.04 container | confirm the PR's next CI run is green; check CI on `dev` after the merge |
+| CI has run only on the PR branch so far | check CI on `dev` after the merge |
 | No licence chosen | owner's choice before a release (playbook §16) |
 | Real-data checks (the owner's own files) run only locally, never in CI | by design (D-006) |
 | CSP allows `style-src 'unsafe-inline'` (desktop and mobile); scripts are same-origin only | move inline styles to classes, then drop it (polish milestone) |
