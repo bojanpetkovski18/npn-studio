@@ -39,6 +39,8 @@ let ok = true;
 ok = run('engine: output baseline', process.execPath, ['test/baseline.js']) && ok;
 ok = run('engine: core unit tests', process.execPath, ['test/core.js', dataDir]) && ok;
 ok = run('engine: desktop e2e', process.execPath, ['test/run.js', dataDir, path.join(outDir, 'desktop')]) && ok;
+// the real desktop window with an empty settings folder: fresh-install state, restore defaults, clear everything
+ok = run('desktop: defaults and reset', electron, [...electronFlags, 'test/desktop-defaults.js'], { minChecks: 29 }) && ok;
 const build = spawnSync(process.execPath, ['mobile/build.mjs'], { cwd: root, encoding: 'utf8' });
 console.log(build.stdout.trim());
 for (const p of ['1', '2', '3', '4', '5']) {
