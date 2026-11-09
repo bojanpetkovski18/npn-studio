@@ -13,6 +13,8 @@ const { enrich } = require('./core/analyze');
 const { Template, buildValues, previewParagraphs, fileNameFor, safeFileName } = require('./core/docx');
 
 app.setName('Nalogix');
+// a separate settings folder (tests, support); it also gets its own single-instance lock
+if (process.env.NALOGIX_USER_DATA) app.setPath('userData', process.env.NALOGIX_USER_DATA);
 let win;
 const state = {
   cases: new Map(),
@@ -33,6 +35,8 @@ function writeSettings(patch) { const s = { ...readSettings(), ...patch }; write
 function appDir() {
   return process.env.PORTABLE_EXECUTABLE_DIR || (app.isPackaged ? path.dirname(process.execPath) : process.cwd());
 }
+/** Where file dialogs open until the user has picked a folder (an installed exe lives deep in AppData). */
+const startDir = () => readSettings().lastDataDir || app.getPath('documents');
 
 // Mica needs Windows 11 22H2+ (build 22621). Elsewhere a transparent window would render black, so use a solid colour.
 const MICA = process.platform === 'win32' && Number((os.release().split('.')[2]) || 0) >= 22621;
@@ -206,11 +210,12 @@ ipcMain.handle('app:init', async () => {
     for (const p of candidates) if (p && fs.existsSync(p)) { try { return await loadTemplate(kind, p); } catch {} }
     return null;
   };
-  await tryLoad('standard', [s.template_standard, path.join(dir, 'template.docx')]);
-  await tryLoad('embg', [s.template_embg, path.join(dir, 'template_NPN_EMBG.docx')]);
+  // only what the user chose earlier: a fresh install starts with no templates and no output folder
+  await tryLoad('standard', [s.template_standard]);
+  await tryLoad('embg', [s.template_embg]);
   const session = readJson(userFile('session.json'), null);
   return {
-    settings: s, appDir: dir, defaultOut: s.outDir || path.join(dir, 'output'),
+    settings: s, appDir: dir, defaultOut: s.outDir || '',
     templates: { standard: templateInfo('standard'), embg: templateInfo('embg') },
     version: app.getVersion(),
     mica: MICA,
@@ -221,6 +226,20 @@ ipcMain.handle('app:init', async () => {
 });
 ipcMain.handle('app:pdfEngine', () => pdfEngine());
 ipcMain.handle('settings:set', (_e, patch) => writeSettings(patch));
+// Back to a fresh install. The theme and the recent-projects list are kept; `all` also forgets the loaded data
+// and the remembered session. Generation history is never deleted.
+const KEEP_ON_RESET = ['theme', 'recent'];
+ipcMain.handle('settings:reset', (_e, { all = false } = {}) => {
+  const s = readSettings();
+  writeJson(userFile('settings.json'), Object.fromEntries(KEEP_ON_RESET.filter((k) => k in s).map((k) => [k, s[k]])));
+  state.templates = { standard: null, embg: null };
+  if (all) {
+    state.cases = new Map();
+    state.overrides = new Map();
+    try { fs.rmSync(userFile('session.json'), { force: true }); } catch {}
+  }
+  return true;
+});
 /** theme: 'system' | 'light' | 'dark' → returns the effective theme ('light' | 'dark'). */
 ipcMain.handle('theme:set', (_e, theme) => {
   nativeTheme.themeSource = theme === 'dark' || theme === 'light' ? theme : 'system';
@@ -235,19 +254,19 @@ ipcMain.handle('theme:set', (_e, theme) => {
 ipcMain.handle('dialog:excel', async () => {
   const r = await dialog.showOpenDialog(win, {
     title: 'Избери „Листа на тужби“ и „Ставки по тужби“', properties: ['openFile', 'multiSelections'],
-    filters: [{ name: 'Excel', extensions: ['xls', 'xlsx', 'xlsm', 'csv'] }], defaultPath: readSettings().lastDataDir || appDir(),
+    filters: [{ name: 'Excel', extensions: ['xls', 'xlsx', 'xlsm', 'csv'] }], defaultPath: startDir(),
   });
   if (!r.canceled && r.filePaths[0]) writeSettings({ lastDataDir: path.dirname(r.filePaths[0]) });
   return r.canceled ? [] : r.filePaths;
 });
 ipcMain.handle('dialog:folder', async (_e, title) => {
-  const r = await dialog.showOpenDialog(win, { title, properties: ['openDirectory', 'createDirectory'], defaultPath: appDir() });
+  const r = await dialog.showOpenDialog(win, { title, properties: ['openDirectory', 'createDirectory'], defaultPath: startDir() });
   return r.canceled ? null : r.filePaths[0];
 });
 ipcMain.handle('dialog:template', async (_e, kind) => {
   const r = await dialog.showOpenDialog(win, {
     title: kind === 'embg' ? 'Шаблон со ЕМБГ' : 'Стандарден шаблон', properties: ['openFile'],
-    filters: [{ name: 'Word', extensions: ['docx'] }], defaultPath: appDir(),
+    filters: [{ name: 'Word', extensions: ['docx'] }], defaultPath: startDir(),
   });
   return r.canceled ? null : loadTemplate(kind, r.filePaths[0]);
 });
@@ -324,7 +343,7 @@ ipcMain.handle('preview', async (_e, id, mode, datum) => {
 
 ipcMain.handle('export:view', async (_e, ids) => {
   const r = await dialog.showSaveDialog(win, {
-    title: 'Извези ја табелата', defaultPath: path.join(readSettings().outDir || appDir(), `Nalogix_табела_${new Date().toISOString().slice(0, 10)}.xlsx`),
+    title: 'Извези ја табелата', defaultPath: path.join(readSettings().outDir || startDir(), `Nalogix_табела_${new Date().toISOString().slice(0, 10)}.xlsx`),
     filters: [{ name: 'Excel', extensions: ['xlsx'] }],
   });
   if (r.canceled) return null;
@@ -338,7 +357,7 @@ ipcMain.handle('project:save', async (_e, data, filePath) => {
   let target = filePath;
   if (!target) {
     const r = await dialog.showSaveDialog(win, {
-      title: 'Зачувај проект', defaultPath: path.join(readSettings().lastDataDir || appDir(), 'Проект.nalogix'),
+      title: 'Зачувај проект', defaultPath: path.join(startDir(), 'Проект.nalogix'),
       filters: [{ name: 'Nalogix проект', extensions: ['nalogix'] }],
     });
     if (r.canceled) return null;
@@ -353,7 +372,7 @@ ipcMain.handle('project:save', async (_e, data, filePath) => {
 ipcMain.handle('project:open', async (_e, filePath) => {
   let target = filePath;
   if (!target) {
-    const r = await dialog.showOpenDialog(win, { title: 'Отвори проект', properties: ['openFile'], filters: [{ name: 'Nalogix проект', extensions: ['nalogix'] }], defaultPath: readSettings().lastDataDir || appDir() });
+    const r = await dialog.showOpenDialog(win, { title: 'Отвори проект', properties: ['openFile'], filters: [{ name: 'Nalogix проект', extensions: ['nalogix'] }], defaultPath: startDir() });
     if (r.canceled) return null;
     target = r.filePaths[0];
   }
