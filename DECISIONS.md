@@ -73,3 +73,9 @@ Numbered, never renumbered. Each entry: date, decision, why, alternatives, trade
 **Decision:** the owner chose to push to the existing public repository instead of starting private (playbook §2, Phase 1).
 **Why:** owner's decision. Before the push: gitleaks over all commits (no leaks), a scan for personal data and local paths (none; only the public GitHub user name in links), commits use the GitHub no-reply e-mail, and only fictional data is tracked (D-006).
 **Trade-offs:** everything pushed is public immediately; the same scans run in CI on every push (`scripts/check.sh repository`).
+
+### D-015 · 2026-11-09 · A fresh install starts empty; settings can be reset
+**Decision:** the desktop app no longer picks up `template.docx` / `template_NPN_EMBG.docx` next to the exe and no longer defaults the output folder to `<exe folder>\output`. Only templates and a folder the user chose are remembered. File dialogs open in Documents until a folder is chosen. Two actions, each confirmed: **Врати почетни поставки** (settings back to a fresh install, loaded tables kept) and **Исчисти сè** (also unloads the data, manual edits and the remembered session). Both keep the theme, the recent-projects list and the generation history, and never touch generated files.
+**Why:** the owner asked for it; an installed exe lives in `AppData\Local\Programs`, so the old defaults pointed at a folder users never see.
+**Alternatives:** keep the exe-folder lookup for the portable build only (two behaviours to explain); reset without confirmation (one click loses a set-up).
+**Trade-offs:** a first run needs two more clicks (templates, output folder); **Од папка…** still finds the templates in the chosen folder, and Generate says what is missing.

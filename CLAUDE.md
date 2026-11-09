@@ -32,7 +32,8 @@ Read `PROGRESS.md`, `DECISIONS.md` and `docs/SPEC.md` before starting; the miles
 | `node test/baseline.js` | output baseline (240 sample cases × 2 templates) | 2026-11-07 |
 | `node test/core.js` | engine unit tests | 2026-11-07 |
 | `node test/run.js` | engine end-to-end (Excel → Word, print document) | 2026-11-07 |
-| `npm run test:all` | engine suites + mobile build + mobile phases 1–5 in Electron phone emulation | 2026-11-07 |
+| `npx electron test/desktop-defaults.js` | desktop window: fresh-install state, restore defaults, clear everything (own settings folder) | 2026-11-09 |
+| `npm run test:all` | engine suites + desktop defaults test + mobile build + mobile phases 1–5 in Electron phone emulation | 2026-11-09 |
 | `npm run mobile:build` | build the PWA into `mobile/dist` | 2026-11-07 |
 | `npm run mobile:lan` | build and serve the PWA on the local network (plain http) | 2026-11-07 |
 | `npm run dist` | build `dist/Nalogix.exe` + `dist/Nalogix-Setup.exe` | 2026-11-07 |

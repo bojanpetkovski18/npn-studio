@@ -183,6 +183,14 @@ input, select { font: inherit; color: inherit; }
 .path-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; flex: 1; }
 .path-btn svg { color: var(--accent); width: 16px; height: 16px; }
 .path-btn:hover { box-shadow: 0 0 0 1px var(--accent); }
+/* no output folder yet (fresh install): a dashed prompt instead of a path; ltr so the "…" stays at the end */
+.path-btn.unset { box-shadow: 0 0 0 1px var(--warn) inset; background: var(--warn-soft); border: 1px dashed transparent; }
+.path-btn.unset span { direction: ltr; color: var(--text-2); font-weight: 550; }
+.sidebar-foot { display: flex; justify-content: space-between; gap: 8px; padding: 2px 4px 0; }
+.link-btn.danger { color: var(--err); }
+.link-btn.danger:hover { background: var(--err-soft); }
+.btn.danger { background: var(--err); color: #fff; }
+.btn.danger:hover { filter: brightness(1.08); }
 input#pattern, input#datum {
   width: 100%; border: 0; outline: 0; background: var(--surface-2); box-shadow: 0 0 0 1px var(--line);
   border-radius: 9px; padding: 9px 10px; font-family: var(--mono); font-size: 12.5px; user-select: text;

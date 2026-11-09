@@ -144,6 +144,68 @@ function snapshot() {
 }
 const saveSession = debounce(() => { if (S.filePaths.length) api.saveSession(snapshot()); }, 1200);
 
+// ---------------- defaults / reset ----------------
+// What a fresh install shows. Templates and the output folder are deliberately empty: the user picks them.
+const DEFAULTS = {
+  mode: 'auto', pattern: 'NPN_{BROJ}', subfolder: 'none', datum: '',
+  rules: { min: 6000, fiz: false, items: true, done: false },
+  combined: false, report: true, overwrite: true, pdf: false,
+};
+function applyDefaults() {
+  S.templates = { standard: null, embg: null };
+  setOutDir('', true);
+  setMode(DEFAULTS.mode, true);
+  $('#pattern').value = DEFAULTS.pattern;
+  $('#subfolder').value = DEFAULTS.subfolder;
+  $('#datum').value = DEFAULTS.datum;
+  $('#minDolg').value = String(DEFAULTS.rules.min);
+  $('#ruleFiz').checked = DEFAULTS.rules.fiz; $('#ruleItems').checked = DEFAULTS.rules.items; $('#ruleDone').checked = DEFAULTS.rules.done;
+  $('#optCombined').checked = DEFAULTS.combined; $('#optReport').checked = DEFAULTS.report;
+  $('#optOverwrite').checked = DEFAULTS.overwrite; $('#optPdf').checked = DEFAULTS.pdf;
+  S.existing = new Set();
+  renderTemplates(); renderRuleCount();
+}
+function confirmDialog({ title, text, ok, danger }, run) {
+  openModal(`<div class="hero-ico" style="background:var(--warn-soft);color:var(--warn)">${ICON.warn}</div>
+    <h3>${esc(title)}</h3><p>${text}</p>
+    <div class="row-btns"><button class="btn ghost" id="mCancel">Откажи</button><button class="btn ${danger ? 'danger' : 'primary'}" id="mConfirm">${esc(ok)}</button></div>`);
+  $('#mCancel').onclick = closeModal;
+  $('#mConfirm').onclick = async () => { closeModal(); await run(); };
+  $('#mCancel').focus();
+}
+/** Settings back to a fresh install; the loaded tables, the selection and manual edits stay. */
+async function resetDefaults() {
+  await api.resetSettings({ all: false });
+  applyDefaults();
+  refresh(); saveSession();
+  toast('ok', 'Поставките се вратени на почетни', 'Изберете шаблони и излезна папка пред генерирање.');
+}
+/** Everything back to a fresh start: settings, loaded tables, selection, manual edits and the remembered session. */
+async function clearAll() {
+  await api.resetSettings({ all: true });
+  if (S.activeId) closeDrawer();
+  applyDefaults();
+  S.filePaths = []; S.generated.clear(); S.projectPath = null;
+  S.query = ''; $('#search').value = ''; S.mesto = ''; S.source = ''; S.filter = 'all';
+  if (S.init) S.init.session = null;
+  updateProjectName();
+  await reload();
+  renderResume();
+  toast('ok', 'Сè е исчистено', 'Програмата е како при прво стартување.');
+}
+const askReset = () => confirmDialog({
+  title: 'Врати почетни поставки?',
+  text: 'Шаблоните и излезната папка ќе се отстранат, а правилата и опциите ќе се вратат на почетните. Вчитаните табели остануваат.',
+  ok: 'Врати почетни',
+}, resetDefaults);
+const askClearAll = () => confirmDialog({
+  title: 'Исчисти сè?',
+  text: 'Ќе се отстранат вчитаните табели, изборот, рачните измени, шаблоните, излезната папка и последната сесија. Веќе генерираните документи на дискот <b>не</b> се бришат.',
+  ok: 'Исчисти сè', danger: true,
+}, clearAll);
+$('#resetBtn').onclick = askReset;
+$('#clearAllBtn').onclick = askClearAll;
+
 function applySettings(st = {}) {
   if (st.mode) setMode(st.mode, true);
   if (st.outDir) setOutDir(st.outDir, true);
@@ -516,7 +578,9 @@ function renderSelection() {
   all.checked = S.view.length > 0 && visSel === S.view.length;
   all.indeterminate = visSel > 0 && visSel < S.view.length;
   $('#selInfo').innerHTML = n ? `<b>${nf(n)}</b> избрани · ${plural(S.cases.filter((c) => S.selected.has(c.id)).reduce((s, c) => s + c.items.length, 0), 'фактура', 'фактури')}` : 'Ништо не е избрано';
-  $('#genBtn').disabled = !(n > 0 && (S.templates.standard || S.templates.embg) && S.outDir && !S.running);
+  const missing = [!(S.templates.standard || S.templates.embg) && 'шаблон', !S.outDir && 'излезна папка'].filter(Boolean);
+  $('#genBtn').disabled = !(n > 0 && !missing.length && !S.running);
+  $('#genBtn').title = missing.length ? `Прво изберете ${missing.join(' и ')}` : n ? '' : 'Изберете тужби за генерирање';
   $('#genLabel').textContent = n ? `Генерирај ${nf(n)} ${n === 1 ? 'документ' : 'документи'}` : 'Генерирај';
 }
 function renderRuleCount() {
@@ -862,6 +926,8 @@ const COMMANDS = [
   { t: 'Извези ја табелата во Excel', i: 'download', run: () => $('#exportBtn').click() },
   { t: 'Отвори ја излезната папка', i: 'folder', run: () => api.open(S.outDir) },
   { t: 'Историја на генерирања', i: 'history', run: showHistory },
+  { t: 'Врати почетни поставки…', i: 'history', run: askReset },
+  { t: 'Исчисти сè…', i: 'x', run: askClearAll },
   { t: 'Тема: светла', i: 'sun', run: () => setTheme('light') },
   { t: 'Тема: темна', i: 'moon', run: () => setTheme('dark') },
   { t: 'Тема: според системот', i: 'table', run: () => setTheme('system') },
@@ -913,7 +979,8 @@ $('#cmdBtn').onclick = openPalette;
 
 // ---------------- sidebar controls ----------------
 function setOutDir(d, quiet) {
-  S.outDir = d; $('#outPath').textContent = d; $('#outBtn').title = d;
+  S.outDir = d; $('#outPath').textContent = d || 'Изберете папка…'; $('#outBtn').title = d || 'Изберете каде да се зачуваат предлозите';
+  $('#outBtn').classList.toggle('unset', !d);
   if (!quiet) { api.setSettings({ outDir: d }); scanExisting().then(() => refresh()); saveSession(); }
 }
 $('#dropzone').onclick = async () => { const p = await api.pickExcel(); if (p.length) addPaths(p); };

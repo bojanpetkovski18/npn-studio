@@ -54,7 +54,12 @@ Windows installers: `npm run dist` → `dist/Nalogix-Setup.exe` (installs per us
 3. Filter **Правни лица** and open a company: the check explains why it gets the standard template.
 4. Open any person: **Документ** shows the filled template; **Уреди** corrects a field; **Проверки** decodes the ЕМБГ.
 5. **Правила за избор** → **Избери ги**: 222 of 240 meet the default rules.
-6. **Генерирај** → Word files, a print document and an Excel report.
+6. **Излез** → **Изберете папка…**: a fresh install has no output folder until you choose one.
+7. **Генерирај** → Word files, a print document and an Excel report.
+
+A fresh install starts with no templates and no output folder. **Врати почетни поставки** (bottom of the left
+panel) returns every setting to that state and keeps the loaded tables; **Исчисти сè** also unloads the data and
+forgets the last session. Both ask first, keep the theme and never delete generated documents.
 
 ## Template placeholders
 
@@ -91,7 +96,7 @@ a guard that no Excel/Word file outside `samples/` is ever committed: `bash scri
 
 | Command | |
 |---------|--|
-| `npm run test:all` | engine tests + mobile build + mobile phases 1–5 |
+| `npm run test:all` | engine tests + desktop defaults/reset test + mobile build + mobile phases 1–5 |
 | `node samples/generate.js` | regenerate the fictional samples |
 | `node test/baseline.js` | fail if any generated document changed |
 | `bash scripts/check.sh` | everything CI runs |

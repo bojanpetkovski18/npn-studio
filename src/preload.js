@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   pdfEngine: call('app:pdfEngine'),
   setTheme: call('theme:set'),
   setSettings: call('settings:set'),
+  resetSettings: call('settings:reset'),
   pickExcel: call('dialog:excel'),
   pickFolder: call('dialog:folder'),
   pickTemplate: call('dialog:template'),

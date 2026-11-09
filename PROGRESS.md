@@ -7,6 +7,7 @@
 | 0 | `#0-npn-implementation` | Shared engine, desktop app (Windows), mobile PWA, Android app, fictional samples, tests, CI | done – PR to `dev` |
 | 1 | `#0001-github-pages-deploy` | Publish the PWA (`mobile/dist`) on GitHub Pages over HTTPS; verify install + offline on a real phone | next – waits for the owner's Pages site |
 | 2 | `#0002-demo-and-portfolio` | README screenshots in both themes, portfolio kit, release notes | planned |
+| 3 | `#0003-fresh-install-defaults-and-reset` | Desktop: fresh install with no templates or output folder; "Врати почетни поставки" and "Исчисти сè" | done – PR to `dev` |
 
 ## Measured results
 
@@ -31,6 +32,7 @@ Data: the fictional `samples/` (240 cases, 1 377 invoices) unless stated otherwi
 | Shipped dependencies | 0 known vulnerabilities | `npm audit --omit=dev --audit-level=moderate` |
 | All dependencies, high+ | 0 | `npm audit --audit-level=high` |
 | CI `app` job on Linux | 48 of 48, twice in a row (2026-11-08) | `CI=true bash scripts/check.sh app` in an `ubuntu:24.04` container as a non-root user, fresh clone, `xvfb-run` |
+| Desktop fresh install and reset | 19 of 19 checks (2026-11-09) | `npx electron test/desktop-defaults.js`: real window, empty settings folder, template files placed next to the exe to prove they are ignored |
 | CI on GitHub (PR run 42498565848, commit e6860ed) | engine, app, repository: all green (2026-11-08); app job 51 s | GitHub Actions jobs API. The first run (7c711da) failed: Chromium's Linux sandbox aborted before the tests; fixed with `--no-sandbox` on Linux CI |
 
 ## Known issues
