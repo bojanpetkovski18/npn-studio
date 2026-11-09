@@ -58,7 +58,24 @@ app.on('browser-window-created', (_e, win) => {
       check('fresh install: no templates, even with template files next to the exe', !fresh.std && !fresh.embg, JSON.stringify(fresh));
       check('fresh install: no output folder', fresh.out === '', JSON.stringify(fresh.out));
       check('fresh install: the output folder asks to be chosen', fresh.label === 'Изберете папка…', fresh.label);
+      const ui = await js(`({ folderBtn: !!document.querySelector('#scanFolderBtn'), adv: document.querySelector('#advanced') ? document.querySelector('#advanced').open : null,
+        header: [...document.querySelectorAll('.titlebar-actions .tb-btn')].map((b) => b.textContent.trim()) })`);
+      check('simple: no "Од папка…" button', !ui.folderBtn);
+      check('simple: the extra options start closed', ui.adv === false, String(ui.adv));
+      check('simple: the header only has "Историја"', JSON.stringify(ui.header) === '["Историја"]', JSON.stringify(ui.header));
       const n = await loadSamples();
+      const view = await js(`({ cols: [...document.querySelectorAll('#thead > div')].map((d) => d.textContent.trim()),
+        cards: document.querySelectorAll('#stats .stat').length, sel: S.selected.size, withItems: S.cases.filter((c) => c.items.length).length,
+        warn: S.cases.filter(FILTERS.warn).length, line: (document.querySelector('#attention') || {}).textContent || '' })`);
+      check('simple: the table shows Број, Должник, Долг, Статус', JSON.stringify(view.cols) === '["","Број","Должник","Долг","Статус"]', JSON.stringify(view.cols));
+      check('simple: no statistics cards (total debt etc.)', view.cards === 0, String(view.cards));
+      check('simple: every case with invoices is selected', view.sel === view.withItems && view.sel > 0, `${view.sel} of ${view.withItems}`);
+      check('simple: one line says how many cases need a look', view.warn > 0 && view.line.includes(String(view.warn)), view.line);
+      await js(`document.querySelector('#attnBtn').click(); 0`);
+      const only = await js('S.view.length');
+      await js(`document.querySelector('#attnBtn').click(); 0`);
+      const back = await js('S.view.length');
+      check('simple: one click shows only those cases, a second click shows all', only === view.warn && back === n, `${only} / ${back}`);
       await js(`S.templates = { standard: null, embg: null }; renderTemplates(); applyRules(); 0`);
       const why = await js(`({ disabled: document.querySelector('#genBtn').disabled, title: document.querySelector('#genBtn').title })`);
       check('generate stays disabled and says why', why.disabled && /шаблон/.test(why.title) && /папка/.test(why.title), JSON.stringify(why));
@@ -74,6 +91,7 @@ app.on('browser-window-created', (_e, win) => {
       const before = readJson(settingsFile) || {};
       check('settings are remembered', before.outDir === outDir && !!before.template_standard && before.mode === 'embg', JSON.stringify(before));
       check('the session is remembered', fs.existsSync(sessionFile));
+      check('a changed hidden option is flagged on "Повеќе опции"', (await js(`document.querySelector('#advNote').textContent`)) === '· изменети');
 
       // 3. restore defaults: settings back to a fresh install, the loaded tables stay
       await confirmVia('#resetBtn');
@@ -85,9 +103,10 @@ app.on('browser-window-created', (_e, win) => {
         tplLabel: document.querySelector('#tpl-standard').textContent })`);
       check('restore defaults: templates and output folder cleared', !r.std && !r.embg && r.out === '', JSON.stringify(r));
       check('restore defaults: rules and options back to their defaults', r.mode === 'auto' && r.pattern === 'NPN_{BROJ}' && r.sub === 'none'
-        && r.min === '6000' && !r.fiz && r.items && !r.comb && r.report, JSON.stringify(r));
+        && r.min === '0' && !r.fiz && r.items && !r.comb && r.report, JSON.stringify(r));
       check('restore defaults: the template panel shows "Не е избран"', /Не е избран/.test(r.tplLabel), r.tplLabel);
       check('restore defaults: the loaded tables stay', r.cases === n && n > 0, `${r.cases} of ${n}`);
+      check('restore defaults: "Повеќе опции" is no longer flagged', (await js(`document.querySelector('#advNote').textContent`)) === '');
       const after = readJson(settingsFile) || {};
       check('restore defaults: saved settings cleared, the theme is kept', !('outDir' in after) && !('template_standard' in after)
         && !('template_embg' in after) && !('mode' in after) && !('pattern' in after) && after.theme === 'dark', JSON.stringify(after));

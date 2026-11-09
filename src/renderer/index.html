@@ -21,8 +21,6 @@
       <span>Барај тужба или команда…</span><kbd>Ctrl K</kbd>
     </button>
     <div class="titlebar-actions">
-      <button class="tb-btn" id="openProjBtn" title="Отвори проект (Ctrl+O)"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Отвори</span></button>
-      <button class="tb-btn" id="saveProjBtn" title="Зачувај проект (Ctrl+S)"><svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z M8 4v5h7V4 M8 20v-6h8v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Зачувај</span></button>
       <button class="tb-btn" id="historyBtn" title="Историја на генерирања"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Историја</span></button>
       <button class="icon-btn" id="themeBtn" title="Светла / темна тема"></button>
     </div>
@@ -32,10 +30,10 @@
     <!-- ======= Sidebar ======= -->
     <aside class="sidebar">
       <section class="panel">
-        <div class="panel-head"><span class="step">1</span><h2>Податоци</h2><button class="link-btn" id="scanFolderBtn">Од папка…</button></div>
+        <div class="panel-head"><span class="step">1</span><h2>Табели</h2></div>
         <div class="dropzone" id="dropzone" tabindex="0">
           <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <div><strong>Пуштете ги Excel датотеките тука</strong><br/><span>Листа + Ставки — типот се препознава сам</span></div>
+          <div><strong>Додадете ги двете Excel табели</strong><br/><span>„Листа на тужби“ и „Ставки по тужби“</span></div>
         </div>
         <ul class="file-list" id="fileList"></ul>
       </section>
@@ -44,30 +42,34 @@
         <div class="panel-head"><span class="step">2</span><h2>Шаблони</h2></div>
         <div class="tpl" id="tpl-standard"></div>
         <div class="tpl" id="tpl-embg"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><span class="step">3</span><h2>Каде да се зачуваат</h2></div>
+        <button class="path-btn" id="outBtn"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span id="outPath">—</span></button>
+        <div id="datumWrap" hidden>
+          <label class="field-label" for="datum">Датум во предлогот</label>
+          <input id="datum" class="inp" placeholder="пр. 06.11.2026" />
+        </div>
+      </section>
+
+      <!-- everything below is optional; a lawyer never needs to open it -->
+      <details class="panel advanced" id="advanced">
+        <summary>Повеќе опции <span class="adv-note" id="advNote"></span></summary>
         <label class="field-label">Кој шаблон да се користи</label>
         <div class="segmented" id="modeSeg">
           <button data-v="auto" class="on" title="Шаблон со ЕМБГ за физички лица со важечки ЕМБГ, инаку стандарден">Паметно</button>
           <button data-v="standard">Стандарден</button>
           <button data-v="embg">Со ЕМБГ</button>
         </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head"><span class="step">3</span><h2>Правила за избор</h2></div>
-        <label class="field-label" for="minDolg">Минимален долг <span class="hint">ден.</span></label>
-        <div class="input-wrap"><input id="minDolg" class="inp" type="text" inputmode="numeric" value="6000" /><span class="suffix">ден.</span></div>
+        <label class="field-label" for="minDolg">Избери само тужби со долг од најмалку <span class="hint">ден.</span></label>
+        <div class="input-wrap"><input id="minDolg" class="inp" type="text" inputmode="numeric" value="0" /><span class="suffix">ден.</span></div>
         <div class="toggles">
           <label class="toggle"><input type="checkbox" id="ruleFiz" /><span class="sw"></span><span>Само физички лица</span></label>
           <label class="toggle"><input type="checkbox" id="ruleItems" checked /><span class="sw"></span><span>Прескокни тужби без фактури</span></label>
           <label class="toggle"><input type="checkbox" id="ruleDone" /><span class="sw"></span><span>Прескокни веќе генерирани</span></label>
         </div>
         <div class="rule-result"><span id="ruleCount">—</span><button class="small-btn accent" id="applyRules">Избери ги</button></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head"><span class="step">4</span><h2>Излез</h2></div>
-        <label class="field-label">Папка</label>
-        <button class="path-btn" id="outBtn"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span id="outPath">—</span></button>
         <label class="field-label" for="pattern">Име на датотека <span class="hint">{BROJ} {IME} {SIFRA}</span></label>
         <div class="input-wrap"><input id="pattern" class="inp mono" value="NPN_{BROJ}" spellcheck="false" /><span class="suffix">.docx</span></div>
         <label class="field-label" for="subfolder">Подели во папки</label>
@@ -78,17 +80,13 @@
           <option value="template">По шаблон</option>
           <option value="source">По листа (извор)</option>
         </select>
-        <div id="datumWrap" hidden>
-          <label class="field-label" for="datum">Датум за {{DATUM}}</label>
-          <input id="datum" class="inp" placeholder="пр. 06.11.2026" />
-        </div>
         <div class="toggles">
           <label class="toggle"><input type="checkbox" id="optCombined" /><span class="sw"></span><span>Заеднички документ за печатење</span></label>
           <label class="toggle"><input type="checkbox" id="optReport" checked /><span class="sw"></span><span>Excel извештај</span></label>
           <label class="toggle" id="pdfToggle"><input type="checkbox" id="optPdf" /><span class="sw"></span><span>PDF копии <em id="pdfNote">(проверувам…)</em></span></label>
           <label class="toggle"><input type="checkbox" id="optOverwrite" checked /><span class="sw"></span><span>Пребриши постоечки</span></label>
         </div>
-      </section>
+      </details>
 
       <div class="sidebar-foot">
         <button class="link-btn" id="resetBtn" title="Шаблоните и излезната папка се отстрануваат, правилата и опциите се враќаат на почетни. Табелите остануваат.">Врати почетни поставки</button>
@@ -98,29 +96,15 @@
 
     <!-- ======= Main ======= -->
     <main class="main">
+      <!-- one line: how many cases need a look, and a button that shows just those -->
       <div class="stats" id="stats"></div>
 
       <div class="toolbar">
-        <div class="segmented view-seg" id="viewSeg">
-          <button data-v="table" class="on" title="Табела"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-          <button data-v="charts" title="Аналитика"><svg viewBox="0 0 24 24"><path d="M5 20V11M12 20V5M19 20v-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
-        </div>
         <div class="search">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-          <input id="search" placeholder="Барај по број, име, адреса, шифра, ЕМБГ, фактура…  (Ctrl+F)" spellcheck="false" />
+          <input id="search" placeholder="Барај по број или име…  (Ctrl+F)" spellcheck="false" />
           <kbd id="searchCount"></kbd>
         </div>
-        <select id="mestoSel" class="select" title="Место"><option value="">Сите места</option></select>
-        <select id="sourceSel" class="select" title="Извор"><option value="">Сите листи</option></select>
-        <button class="icon-btn boxed" id="exportBtn" title="Извези ја прикажаната табела во Excel"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      </div>
-      <div class="chips" id="filterChips">
-        <button data-f="all" class="on">Сите</button>
-        <button data-f="fiz">Физички лица</button>
-        <button data-f="pravno">Правни лица</button>
-        <button data-f="warn">Предупредувања</button>
-        <button data-f="todo">Негенерирани</button>
-        <button data-f="edited">Рачно изменети</button>
       </div>
 
       <div class="table-card" id="tableCard">
@@ -128,19 +112,20 @@
           <div class="c-chk"><input type="checkbox" id="chkAll" title="Избери ги сите прикажани" /></div>
           <div class="c-num sortable" data-s="broj">Број</div>
           <div class="c-name sortable" data-s="ime">Должник</div>
-          <div class="c-embg sortable" data-s="mesto">Место</div>
-          <div class="c-cnt sortable" data-s="items">Ф-ри</div>
           <div class="c-amt sortable" data-s="vkupenDolg">Долг</div>
-          <div class="c-amt sortable" data-s="vkupnoTroshoci">Трошоци</div>
-          <div class="c-tpl">Шаблон</div>
           <div class="c-st sortable" data-s="warn">Статус</div>
         </div>
         <div class="tbody" id="tbody"><div class="vpad" id="vpad"></div><div class="rows" id="rows"></div></div>
         <div class="empty" id="empty">
           <div class="empty-art"><svg viewBox="0 0 120 90"><rect x="20" y="10" width="56" height="72" rx="6" class="ea1"/><rect x="44" y="4" width="56" height="72" rx="6" class="ea2"/><path d="M54 22h36M54 32h36M54 42h24" class="ea3"/><circle cx="92" cy="66" r="14" class="ea4"/><path d="M86 66h12M92 60v12" class="ea5"/></svg></div>
           <h3>Добредојдовте во Nalogix</h3>
-          <p>Додадете ја „Листа на тужби“ и „Ставки по тужби“ од левата страна,<br/>или изберете цела папка — шаблоните и табелите ќе се пронајдат сами.</p>
-          <div class="empty-actions"><button class="btn primary" id="emptyFolderBtn">Избери папка</button><button class="btn soft" id="emptyProjBtn">Отвори проект</button></div>
+          <ol class="empty-steps">
+            <li>Додадете ги двете Excel табели</li>
+            <li>Изберете ги Word шаблоните</li>
+            <li>Изберете каде да се зачуваат</li>
+            <li>Кликнете <b>Генерирај</b></li>
+          </ol>
+          <div class="empty-actions"><button class="btn primary" id="emptyAddBtn">Додај Excel табели</button></div>
           <div class="resume" id="resume"></div>
         </div>
       </div>

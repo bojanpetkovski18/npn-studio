@@ -148,7 +148,7 @@ const saveSession = debounce(() => { if (S.filePaths.length) api.saveSession(sna
 // What a fresh install shows. Templates and the output folder are deliberately empty: the user picks them.
 const DEFAULTS = {
   mode: 'auto', pattern: 'NPN_{BROJ}', subfolder: 'none', datum: '',
-  rules: { min: 6000, fiz: false, items: true, done: false },
+  rules: { min: 0, fiz: false, items: true, done: false }, // every case with invoices
   combined: false, report: true, overwrite: true, pdf: false,
 };
 function applyDefaults() {
@@ -165,6 +165,16 @@ function applyDefaults() {
   S.existing = new Set();
   renderTemplates(); renderRuleCount();
 }
+/** "Повеќе опции" stays closed, so it says when something inside differs from the defaults. */
+function updateAdvNote() {
+  const r = rules(); const d = DEFAULTS;
+  const changed = S.mode !== d.mode || r.min !== d.rules.min || r.fiz !== d.rules.fiz || r.items !== d.rules.items || r.done !== d.rules.done
+    || ($('#pattern').value || d.pattern) !== d.pattern || $('#subfolder').value !== d.subfolder || $('#optCombined').checked !== d.combined
+    || $('#optReport').checked !== d.report || $('#optOverwrite').checked !== d.overwrite || $('#optPdf').checked !== d.pdf;
+  $('#advNote').textContent = changed ? '· изменети' : '';
+}
+$('#advanced').addEventListener('change', updateAdvNote);
+$('#advanced').addEventListener('input', updateAdvNote);
 function confirmDialog({ title, text, ok, danger }, run) {
   openModal(`<div class="hero-ico" style="background:var(--warn-soft);color:var(--warn)">${ICON.warn}</div>
     <h3>${esc(title)}</h3><p>${text}</p>
@@ -212,7 +222,7 @@ function applySettings(st = {}) {
   if (st.pattern) $('#pattern').value = st.pattern;
   if (st.subfolder) $('#subfolder').value = st.subfolder;
   if (st.rules) {
-    $('#minDolg').value = st.rules.min ?? 6000; $('#ruleFiz').checked = !!st.rules.fiz;
+    $('#minDolg').value = st.rules.min ?? DEFAULTS.rules.min; $('#ruleFiz').checked = !!st.rules.fiz;
     $('#ruleItems').checked = st.rules.items !== false; $('#ruleDone').checked = !!st.rules.done;
   }
   for (const k of ['combined', 'report', 'overwrite']) if (typeof st[k] === 'boolean') $(`#opt${k[0].toUpperCase()}${k.slice(1)}`).checked = st[k];
@@ -249,9 +259,6 @@ async function saveProject(as) {
 function updateProjectName() {
   $('#projectName').textContent = S.projectPath ? S.projectPath.split(/[\\/]/).pop().replace(/\.nalogix$/i, '') : 'Предлози за нотарски платен налог';
 }
-$('#openProjBtn').onclick = () => openProject();
-$('#saveProjBtn').onclick = () => saveProject(false);
-$('#emptyProjBtn').onclick = () => openProject();
 
 function renderResume() {
   const init = S.init || {};
@@ -355,17 +362,10 @@ function renderFiles() {
   $$('#fileList .x-btn').forEach((b) => b.onclick = () => { S.filePaths = S.filePaths.filter((p) => p !== b.dataset.path); reload(); });
 }
 
+/** The simple view has no place/list dropdowns; drop a place or list filter whose cases are gone. */
 function renderFilters() {
-  const sources = [...new Set(S.cases.map((c) => c.source))];
-  if (!sources.includes(S.source)) S.source = '';
-  $('#sourceSel').innerHTML = '<option value="">Сите листи</option>' + sources.map((s) => `<option ${s === S.source ? 'selected' : ''} value="${esc(s)}">${esc(s.replace(/\.xlsx?$/i, ''))}</option>`).join('');
-  $('#sourceSel').style.display = sources.length > 1 ? '' : 'none';
-  const places = {};
-  for (const c of S.cases) places[c.mesto] = (places[c.mesto] || 0) + 1;
-  const list = Object.entries(places).sort((a, b) => b[1] - a[1]);
-  if (!places[S.mesto]) S.mesto = '';
-  $('#mestoSel').innerHTML = '<option value="">Сите места</option>' + list.map(([m, n]) => `<option ${m === S.mesto ? 'selected' : ''} value="${esc(m)}">${esc(m)} (${n})</option>`).join('');
-  $('#mestoSel').style.display = list.length > 1 ? '' : 'none';
+  if (S.source && !S.cases.some((c) => c.source === S.source)) S.source = '';
+  if (S.mesto && !S.cases.some((c) => c.mesto === S.mesto)) S.mesto = '';
 }
 
 // ---------------- templates ----------------
@@ -386,8 +386,7 @@ function renderTemplates() {
     const title = kind === 'embg' ? 'Шаблон со ЕМБГ' : 'Стандарден шаблон';
     $(`#tpl-${kind}`).innerHTML = t
       ? `<div class="tpl-ico ${kind === 'embg' ? 'embg' : ''}">W</div>
-        <div style="min-width:0"><div class="tpl-title">${title}</div><div class="tpl-name" title="${esc(t.filePath)}">${esc(t.name)}</div>
-        <div class="tpl-ph" title="${esc(t.placeholders.join(', '))}">${t.placeholders.length} полиња</div></div>
+        <div style="min-width:0"><div class="tpl-title">${title}</div><div class="tpl-name" title="${esc(t.filePath)}">${esc(t.name)}</div></div>
         <button class="small-btn" data-k="${kind}">Промени</button>`
       : `<div class="tpl-ico missing">W</div><div><div class="tpl-title">${title}</div><div class="tpl-name" style="color:var(--text-3)">Не е избран</div></div>
         <button class="small-btn" data-k="${kind}">Избери</button>`;
@@ -406,6 +405,7 @@ function setMode(m, quiet) {
   S.mode = m;
   $$('#modeSeg button').forEach((x) => x.classList.toggle('on', x.dataset.v === m));
   if (!quiet) { api.setSettings({ mode: m }); saveSession(); }
+  updateAdvNote();
   renderRows(true);
   if (S.activeId) renderDrawer();
 }
@@ -459,7 +459,7 @@ function refresh(recompute = true) {
     b.innerHTML = `${esc(b.dataset.label)}${n !== null ? `<span class="n">${nf(n)}</span>` : ''}`;
     b.classList.toggle('on', b.dataset.f === S.filter);
   });
-  renderRows(true); renderStats(); renderSelection(); renderRuleCount();
+  renderRows(true); renderStats(); renderSelection(); renderRuleCount(); updateAdvNote();
   if (S.viewMode === 'charts') renderCharts();
 }
 
@@ -500,19 +500,16 @@ function statusPill(c) {
   if (S.existing.has(c.id)) return '<span class="pill exist">Постои</span>';
   return '<span class="pill ok">Во ред</span>';
 }
+// a lawyer scans four things: number, debtor, amount, and whether it is fine; the rest is one click away (drawer)
 function rowHtml(c, idx) {
-  const tpl = templateFor(c);
   const sel = S.selected.has(c.id);
+  const why = c.warnings.filter((w) => w.level !== 'info').map((w) => w.text);
   return `<div class="row ${sel ? 'sel' : ''} ${S.activeId === c.id ? 'active' : ''}" data-id="${esc(c.id)}" data-idx="${idx}" style="transform:translateY(${idx * ROW_H}px);position:absolute;left:0;right:0">
     <div class="c-chk"><input type="checkbox" ${sel ? 'checked' : ''} tabindex="-1"/></div>
     <div class="num">${hl(c.broj)}</div>
-    <div style="min-width:0"><div class="nm">${c.tip === 'pravno' ? '<span class="tag legal">ПРАВНО</span>' : ''}${c.edited.length ? '<span class="tag edited">ИЗМЕНЕТО</span>' : ''}${hl(c.ime)}</div>
-      <div class="ad">${hl(c.adresa)} · <span class="muted">${hl(c.sifra)}${c.embg ? ` · ${hl(c.embg)}` : ''}</span></div></div>
-    <div class="place">${hl(c.mesto)}</div>
-    <div class="cnt">${c.items.length}</div>
+    <div style="min-width:0"><div class="nm">${c.edited.length ? '<span class="tag edited">ИЗМЕНЕТО</span>' : ''}${hl(c.ime)}</div>
+      <div class="ad">${why.length ? `<span class="why">${esc(why[0])}${why.length > 1 ? ` (+${why.length - 1})` : ''}</span>` : hl(c.adresa)}</div></div>
     <div class="amt">${money(c.vkupenDolg)}</div>
-    <div class="amt2">${money(c.vkupnoTroshoci)}</div>
-    <div>${tpl ? `<span class="pill ${tpl}">${tpl === 'emb' ? 'ЕМБГ' : 'Стандарден'}</span>` : '<span class="pill err">Нема</span>'}</div>
     <div title="${esc(c.warnings.map((w) => w.text).join('\n'))}">${statusPill(c)}</div>
   </div>`;
 }
@@ -555,21 +552,22 @@ $$('.thead .sortable').forEach((h) => h.onclick = () => { S.sort = { key: h.data
 $('#chkAll').onchange = (e) => { for (const c of S.view) e.target.checked ? S.selected.add(c.id) : S.selected.delete(c.id); selChanged(); };
 
 // ---------------- stats / selection / rules ----------------
+/** One status line instead of statistics: how many cases need a look, and one button to show just those. */
 function renderStats() {
   if (!S.cases.length) { $('#stats').innerHTML = ''; return; }
-  const sel = S.cases.filter((c) => S.selected.has(c.id));
-  const sum = (arr, f) => arr.reduce((s, c) => s + f(c), 0);
   const warn = S.cases.filter(FILTERS.warn).length;
-  const items = sum(S.cases, (c) => c.items.length);
-  const legal = S.cases.filter((c) => c.tip === 'pravno').length;
-  const done = S.cases.filter((c) => S.existing.has(c.id) || S.generated.get(c.id) === 'ok').length;
-  $('#stats').innerHTML = `
-    <div class="stat hero"><div class="lbl"><i></i>Избрани за генерирање</div><div class="val">${nf(sel.length)}<small>/ ${nf(S.cases.length)}</small></div><div class="sub">${moneyShort(sum(sel, (c) => c.vkupenDolg))} ден. главен долг</div></div>
-    <div class="stat"><div class="lbl"><i></i>Тужби</div><div class="val">${nf(S.cases.length)}</div><div class="sub">${nf(S.cases.length - legal)} физички · ${nf(legal)} правни</div></div>
-    <div class="stat"><div class="lbl"><i style="background:var(--accent-2)"></i>Фактури</div><div class="val">${nf(items)}</div><div class="sub">${nf(done)} тужби веќе генерирани</div></div>
-    <div class="stat"><div class="lbl"><i style="background:var(--ok)"></i>Вкупен долг</div><div class="val">${moneyShort(sum(S.cases, (c) => c.vkupenDolg))}<small>ден.</small></div><div class="sub">+ ${moneyShort(sum(S.cases, (c) => c.vkupnoTroshoci))} ден. трошоци</div></div>
-    <div class="stat clickable" id="warnStat" title="Прикажи ги само тужбите со предупредување"><div class="lbl"><i style="background:${warn ? 'var(--warn)' : 'var(--ok)'}"></i>Предупредувања</div><div class="val">${warn}</div><div class="sub">${warn ? 'кликнете за преглед' : 'сите податоци се усогласени'}</div></div>`;
-  $('#warnStat').onclick = () => setFilter(S.filter === 'warn' ? 'all' : 'warn');
+  const narrowed = S.filter !== 'all' || S.mesto || S.source;
+  let text; let btn = '';
+  if (narrowed) {
+    text = S.filter === 'warn' ? `Прикажани се само ${plural(S.view.length, 'тужба', 'тужби')} за проверка.` : `Прикажани се ${nf(S.view.length)} од ${nf(S.cases.length)} тужби.`;
+    btn = 'Прикажи ги сите';
+  } else if (warn) {
+    text = `<b>${nf(warn)}</b> ${warn % 10 === 1 && warn % 100 !== 11 ? 'тужба треба да се провери' : 'тужби треба да се проверат'} пред генерирање.`;
+    btn = 'Прикажи ги';
+  } else text = `Сите ${plural(S.cases.length, 'тужба е', 'тужби се')} во ред.`;
+  $('#stats').innerHTML = `<div class="attention ${warn && !narrowed ? 'warn' : narrowed ? 'info' : 'ok'}" id="attention">
+    ${warn && !narrowed ? ICON.warn : narrowed ? ICON.info : ICON.ok}<span>${text}</span>${btn ? `<button class="small-btn" id="attnBtn">${btn}</button>` : ''}</div>`;
+  if (btn) $('#attnBtn').onclick = () => (narrowed ? clearFilters() : setFilter('warn'));
 }
 function renderSelection() {
   const n = S.selected.size;
@@ -577,7 +575,7 @@ function renderSelection() {
   const all = $('#chkAll');
   all.checked = S.view.length > 0 && visSel === S.view.length;
   all.indeterminate = visSel > 0 && visSel < S.view.length;
-  $('#selInfo').innerHTML = n ? `<b>${nf(n)}</b> избрани · ${plural(S.cases.filter((c) => S.selected.has(c.id)).reduce((s, c) => s + c.items.length, 0), 'фактура', 'фактури')}` : 'Ништо не е избрано';
+  $('#selInfo').innerHTML = n ? `<b>${nf(n)}</b> од ${nf(S.cases.length)} избрани` : 'Ништо не е избрано';
   const missing = [!(S.templates.standard || S.templates.embg) && 'шаблон', !S.outDir && 'излезна папка'].filter(Boolean);
   $('#genBtn').disabled = !(n > 0 && !missing.length && !S.running);
   $('#genBtn').title = missing.length ? `Прво изберете ${missing.join(' и ')}` : n ? '' : 'Изберете тужби за генерирање';
@@ -599,14 +597,13 @@ $('#applyRules').onclick = applyRules;
 
 function setFilter(f) { S.filter = f; tbody.scrollTop = 0; refresh(); }
 $$('#filterChips button').forEach((b) => b.onclick = () => setFilter(b.dataset.f));
-$('#sourceSel').onchange = (e) => { S.source = e.target.value; tbody.scrollTop = 0; refresh(); };
-$('#mestoSel').onchange = (e) => { S.mesto = e.target.value; tbody.scrollTop = 0; refresh(); };
 $('#search').addEventListener('input', debounce((e) => { S.query = e.target.value; tbody.scrollTop = 0; refresh(); }, 90));
-$('#exportBtn').onclick = async () => {
+function clearFilters() { S.query = ''; $('#search').value = ''; S.mesto = ''; S.source = ''; setFilter('all'); }
+async function exportView() {
   if (!S.view.length) return;
   try { const f = await api.exportView(S.view.map((c) => c.id)); if (f) toast('ok', 'Табелата е извезена', f.split(/[\\/]/).pop()); }
   catch (e) { toast('error', 'Извозот не успеа', cleanErr(e)); }
-};
+}
 
 // ---------------- views ----------------
 function setView(v) {
@@ -914,7 +911,7 @@ const COMMANDS = [
   { t: 'Зачувај проект', k: 'Ctrl+S', i: 'save', run: () => saveProject(false) },
   { t: 'Зачувај проект како…', i: 'save', run: () => saveProject(true) },
   { t: 'Додај Excel датотеки…', i: 'file', run: () => $('#dropzone').click() },
-  { t: 'Вчитај сè од папка…', i: 'folder', run: () => $('#scanFolderBtn').click() },
+  { t: 'Вчитај сè од папка…', i: 'folder', run: () => pickFolder() },
   { t: 'Прикажи табела', i: 'table', run: () => setView('table') },
   { t: 'Прикажи аналитика', i: 'chart', run: () => setView('charts') },
   { t: 'Избери ги сите прикажани', k: 'Ctrl+A', i: 'check', run: () => { S.view.forEach((c) => S.selected.add(c.id)); selChanged(); } },
@@ -922,8 +919,8 @@ const COMMANDS = [
   { t: 'Филтер: само предупредувања', i: 'warn', run: () => setFilter('warn') },
   { t: 'Филтер: само правни лица', i: 'filter', run: () => setFilter('pravno') },
   { t: 'Филтер: негенерирани', i: 'filter', run: () => setFilter('todo') },
-  { t: 'Исчисти ги филтрите', i: 'x', run: () => { S.query = ''; $('#search').value = ''; S.mesto = ''; S.source = ''; renderFilters(); setFilter('all'); } },
-  { t: 'Извези ја табелата во Excel', i: 'download', run: () => $('#exportBtn').click() },
+  { t: 'Исчисти ги филтрите', i: 'x', run: clearFilters },
+  { t: 'Извези ја табелата во Excel', i: 'download', run: exportView },
   { t: 'Отвори ја излезната папка', i: 'folder', run: () => api.open(S.outDir) },
   { t: 'Историја на генерирања', i: 'history', run: showHistory },
   { t: 'Врати почетни поставки…', i: 'history', run: askReset },
@@ -986,8 +983,7 @@ function setOutDir(d, quiet) {
 $('#dropzone').onclick = async () => { const p = await api.pickExcel(); if (p.length) addPaths(p); };
 $('#dropzone').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') $('#dropzone').click(); };
 const pickFolder = async () => { const d = await api.pickFolder('Папка со Листа, Ставки и шаблони'); if (d) scanFolder(d); };
-$('#scanFolderBtn').onclick = pickFolder;
-$('#emptyFolderBtn').onclick = pickFolder;
+$('#emptyAddBtn').onclick = () => $('#dropzone').click();
 $('#outBtn').onclick = async () => { const d = await api.pickFolder('Излезна папка'); if (d) setOutDir(d); };
 $('#pattern').addEventListener('change', async (e) => { api.setSettings({ pattern: e.target.value }); await scanExisting(); refresh(); saveSession(); });
 $('#subfolder').addEventListener('change', (e) => { api.setSettings({ subfolder: e.target.value }); saveSession(); });
