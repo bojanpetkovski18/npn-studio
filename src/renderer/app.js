@@ -62,7 +62,7 @@ const S = {
   filePaths: [], files: [], cases: [], byId: new Map(), view: [],
   selected: new Set(), generated: new Map(), existing: new Set(),
   activeId: null, query: '', filter: 'all', source: '', mesto: '',
-  sort: { key: 'broj', dir: 1 }, mode: 'auto', outDir: '',
+  sort: { key: 'broj', dir: 1 }, mode: 'auto', outDir: '', key: 'auto', keyOptions: [],
   templates: { standard: null, embg: null },
   tab: 'doc', viewMode: 'table', highlight: true, running: false, pdf: null, lastClicked: null,
   projectPath: null, init: null, theme: 'system',
@@ -71,7 +71,9 @@ const rules = () => ({
   min: parseNum($('#minDolg').value), fiz: $('#ruleFiz').checked, items: $('#ruleItems').checked, done: $('#ruleDone').checked,
 });
 // r must be computed once per pass (rules() reads the DOM) – never per case
-const eligible = (c, r) => c.vkupenDolg >= r.min && (!r.fiz || c.tip === 'fizicko') && (!r.items || c.items.length > 0) && (!r.done || !S.existing.has(c.id));
+// "skip cases without invoices" only applies when invoices are expected (two tables); one table is the whole source
+const eligible = (c, r) => c.vkupenDolg >= r.min && (!r.fiz || c.tip === 'fizicko') && (!r.items || c.items.length > 0 || c.itemsExpected === false)
+  && (!r.done || !S.existing.has(c.id));
 const eligibleIds = () => { const r = rules(); return S.cases.filter((c) => eligible(c, r)).map((c) => c.id); };
 
 // ---------------- theme (system / light / dark) ----------------
@@ -137,7 +139,7 @@ function snapshot() {
     templates: { standard: S.templates.standard?.filePath || null, embg: S.templates.embg?.filePath || null },
     selected: [...S.selected],
     settings: {
-      mode: S.mode, outDir: S.outDir, pattern: $('#pattern').value, subfolder: $('#subfolder').value,
+      mode: S.mode, key: S.key, outDir: S.outDir, pattern: $('#pattern').value, subfolder: $('#subfolder').value,
       rules: rules(), combined: $('#optCombined').checked, report: $('#optReport').checked, overwrite: $('#optOverwrite').checked,
     },
   };
@@ -186,7 +188,10 @@ function confirmDialog({ title, text, ok, danger }, run) {
 /** Settings back to a fresh install; the loaded tables, the selection and manual edits stay. */
 async function resetDefaults() {
   await api.resetSettings({ all: false });
+  const rejoin = S.key !== 'auto';
   applyDefaults();
+  S.key = 'auto';
+  if (rejoin && S.filePaths.length) await reload(); // back to the automatic key column
   refresh(); saveSession();
   toast('ok', 'Поставките се вратени на почетни', 'Изберете шаблони и излезна папка пред генерирање.');
 }
@@ -195,7 +200,7 @@ async function clearAll() {
   await api.resetSettings({ all: true });
   if (S.activeId) closeDrawer();
   applyDefaults();
-  S.filePaths = []; S.generated.clear(); S.projectPath = null;
+  S.filePaths = []; S.generated.clear(); S.projectPath = null; S.key = 'auto'; S.keyOptions = [];
   S.query = ''; $('#search').value = ''; S.mesto = ''; S.source = ''; S.filter = 'all';
   if (S.init) S.init.session = null;
   updateProjectName();
@@ -218,6 +223,7 @@ $('#clearAllBtn').onclick = askClearAll;
 
 function applySettings(st = {}) {
   if (st.mode) setMode(st.mode, true);
+  if (st.key) S.key = st.key;
   if (st.outDir) setOutDir(st.outDir, true);
   if (st.pattern) $('#pattern').value = st.pattern;
   if (st.subfolder) $('#subfolder').value = st.subfolder;
@@ -312,10 +318,14 @@ async function reload(overrides, selectedIds) {
   try {
     const t0 = performance.now();
     const ov = overrides || (S.cases.length ? currentOverrides() : undefined);
-    const prev = S.cases.length ? { ids: new Set(S.cases.map((c) => c.id)), selected: new Set(S.selected) } : null;
-    const res = await api.loadData(S.filePaths, ov);
+    const kinds = (files) => files.filter((f) => !f.error).map((f) => f.kind).sort().join();
+    let prev = S.cases.length ? { ids: new Set(S.cases.map((c) => c.id)), selected: new Set(S.selected), kinds: kinds(S.files), key: S.key } : null;
+    const res = await api.loadData(S.filePaths, ov, S.key);
     if (seq !== reload.seq) return;
+    // a table added or removed, or another key column: the invoices changed, so the rules choose again
+    if (prev && (prev.kinds !== kinds(res.files) || prev.key !== (res.key || 'auto'))) prev = null;
     S.files = res.files; S.cases = res.cases;
+    S.keyOptions = res.keyOptions || []; S.key = res.key || 'auto';
     S.byId = new Map(res.cases.map((c) => [c.id, c]));
     S.generated.clear();
     await scanExisting();
@@ -331,8 +341,8 @@ async function reload(overrides, selectedIds) {
     const lists = res.files.filter((f) => f.kind === 'list').length;
     const items = res.files.filter((f) => f.kind === 'items').length;
     const legal = S.cases.filter((c) => c.tip === 'pravno').length;
-    if (lists && !items) toast('warn', 'Недостасува „Ставки по тужби“', 'Додадете ја датотеката со ставки за да се пополнат фактурите.');
-    else if (!lists && items) toast('warn', 'Недостасува „Листа на тужби“', 'Додадете ја листата на тужби.');
+    // one table is a complete source on its own (D-017); invoices alone have nobody to address
+    if (!lists && items) toast('warn', 'Недостасува „Листа на тужби“', 'Додадете ја листата на тужби.');
     else if (!selectedIds) toast('ok', `Вчитани ${plural(res.cases.length, 'тужба', 'тужби')}`,
       `${plural(res.itemCount, 'фактура', 'фактури')} за ${Math.round(performance.now() - t0)} ms` +
       (legal ? ` · ${legal} правни лица препознаени` : '') + (res.duplicatesSkipped ? ` · ${res.duplicatesSkipped} дупликати` : '') +
@@ -360,7 +370,24 @@ function renderFiles() {
   }).join('');
   // remove by path, not by index (indexes drift if a load failed half-way)
   $$('#fileList .x-btn').forEach((b) => b.onclick = () => { S.filePaths = S.filePaths.filter((p) => p !== b.dataset.path); reload(); });
+  renderKey();
 }
+
+/** Клучна колона: shown right under the tables, only when two or more tables are loaded. */
+function renderKey() {
+  const tables = S.files.filter((f) => !f.error).length;
+  $('#keyPanel').hidden = tables < 2;
+  if (tables < 2) return;
+  const opts = S.keyOptions || [];
+  // automatic = Тужба број, plus Година when both tables have it (the engine's default join)
+  const autoLabel = opts.some((o) => o.value === 'field:broj') ? 'Автоматски (Тужба број + Година)' : 'Автоматски';
+  $('#keySel').innerHTML = [{ value: 'auto', label: autoLabel }, ...opts]
+    .map((o) => `<option value="${esc(o.value)}" ${o.value === S.key ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
+  $('#keySel').disabled = !opts.length;
+  $('#keyHint').textContent = opts.length ? 'Колоната по која се поврзуваат табелите.' : 'Табелите немаат заедничка колона.';
+  $('#keyHint').classList.toggle('warn', !opts.length);
+}
+$('#keySel').addEventListener('change', (e) => { S.key = e.target.value; reload(); });
 
 /** The simple view has no place/list dropdowns; drop a place or list filter whose cases are gone. */
 function renderFilters() {
@@ -404,7 +431,7 @@ function templateFor(c) {
 function setMode(m, quiet) {
   S.mode = m;
   $$('#modeSeg button').forEach((x) => x.classList.toggle('on', x.dataset.v === m));
-  if (!quiet) { api.setSettings({ mode: m }); saveSession(); }
+  if (!quiet) saveSession();
   updateAdvNote();
   renderRows(true);
   if (S.activeId) renderDrawer();
@@ -850,6 +877,7 @@ async function generate() {
       overwrite: $('#optOverwrite').checked, combined: $('#optCombined').checked, pdf: $('#optPdf').checked && !!S.pdf,
       report: $('#optReport').checked, datum: $('#datum').value,
     });
+    if (sum.refused) { toast('error', 'Генерирањето не започна', sum.refused, 10000); return; }
     // progress events are batched, so take the final status of every case from the summary
     for (const id of sum.doneIds || []) S.generated.set(id, 'ok');
     for (const id of sum.skippedIds || []) S.generated.set(id, 'skipped');
@@ -978,16 +1006,16 @@ $('#cmdBtn').onclick = openPalette;
 function setOutDir(d, quiet) {
   S.outDir = d; $('#outPath').textContent = d || 'Изберете папка…'; $('#outBtn').title = d || 'Изберете каде да се зачуваат предлозите';
   $('#outBtn').classList.toggle('unset', !d);
-  if (!quiet) { api.setSettings({ outDir: d }); scanExisting().then(() => refresh()); saveSession(); }
+  if (!quiet) { scanExisting().then(() => refresh()); saveSession(); }
 }
 $('#dropzone').onclick = async () => { const p = await api.pickExcel(); if (p.length) addPaths(p); };
 $('#dropzone').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') $('#dropzone').click(); };
 const pickFolder = async () => { const d = await api.pickFolder('Папка со Листа, Ставки и шаблони'); if (d) scanFolder(d); };
 $('#emptyAddBtn').onclick = () => $('#dropzone').click();
 $('#outBtn').onclick = async () => { const d = await api.pickFolder('Излезна папка'); if (d) setOutDir(d); };
-$('#pattern').addEventListener('change', async (e) => { api.setSettings({ pattern: e.target.value }); await scanExisting(); refresh(); saveSession(); });
-$('#subfolder').addEventListener('change', (e) => { api.setSettings({ subfolder: e.target.value }); saveSession(); });
-['optCombined', 'optReport', 'optPdf', 'optOverwrite'].forEach((id) => $(`#${id}`).addEventListener('change', (e) => { api.setSettings({ [id]: e.target.checked }); saveSession(); }));
+$('#pattern').addEventListener('change', async () => { await scanExisting(); refresh(); saveSession(); });
+$('#subfolder').addEventListener('change', () => saveSession());
+['optCombined', 'optReport', 'optPdf', 'optOverwrite'].forEach((id) => $(`#${id}`).addEventListener('change', () => saveSession()));
 $('#datum').addEventListener('change', () => S.activeId && renderDrawer());
 
 // ---------------- drag & drop ----------------
@@ -1035,13 +1063,8 @@ window.addEventListener('beforeunload', () => { if (S.filePaths.length) api.save
   document.documentElement.classList.toggle('no-mica', !init.mica);
   setTheme(s.theme || 'system', false); // main already applied it before the window was shown
   api.onOpenProject((p) => openProject(p));
-  S.templates = init.templates;
-  setOutDir(init.defaultOut, true);
-  setMode(s.mode || 'auto', true);
-  if (s.pattern) $('#pattern').value = s.pattern;
-  if (s.subfolder) $('#subfolder').value = s.subfolder;
-  for (const id of ['optCombined', 'optReport', 'optOverwrite']) if (typeof s[id] === 'boolean') $(`#${id}`).checked = s[id];
-  renderTemplates();
+  // every start is empty (D-017): no templates, no output folder, every option at its default
+  applyDefaults();
   renderFilters();
   refresh();
   if (init.openProject) openProject(init.openProject);
@@ -1049,5 +1072,4 @@ window.addEventListener('beforeunload', () => { if (S.filePaths.length) api.save
   S.pdf = await api.pdfEngine();
   $('#pdfNote').textContent = S.pdf === 'word' ? '(преку Microsoft Word)' : S.pdf === 'libreoffice' ? '(преку LibreOffice)' : '(потребен е Word или LibreOffice)';
   $('#pdfToggle').classList.toggle('disabled', !S.pdf);
-  $('#optPdf').checked = !!S.pdf && !!s.optPdf;
 })();

@@ -277,6 +277,22 @@ function safeFileName(s, max = 150) {
   return out || 'document';
 }
 
+const NAME_FIELDS = ['BROJ', 'IME', 'SIFRA', 'GODINA', 'SERIJA', 'EMBG', 'MESTO'];
+/** Why a file-name pattern cannot be used (an unknown {FIELD}), or null when it is fine. */
+function patternProblem(pattern) {
+  const unknown = [...String(pattern || '').matchAll(/\{([^{}]*)\}/g)].map((m) => m[1]).filter((k) => !NAME_FIELDS.includes(k));
+  return unknown.length ? `Непознато поле во името на датотеката: ${unknown.map((k) => `{${k}}`).join(', ')}. Дозволени се: ${NAME_FIELDS.map((k) => `{${k}}`).join(' ')}` : null;
+}
+/** Returns `name`, or "name (2).docx", "name (3).docx"… so no two documents of one run share a file (case-insensitive). */
+function uniqueFileName(name, taken) {
+  const dot = name.lastIndexOf('.');
+  const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ''];
+  let out = name;
+  for (let n = 2; taken.has(out.toLowerCase()); n++) out = `${stem} (${n})${ext}`;
+  taken.add(out.toLowerCase());
+  return out;
+}
+
 function fileNameFor(c, pattern) {
   const map = { BROJ: c.broj, IME: c.ime, SIFRA: c.sifra, GODINA: c.godina, SERIJA: c.serija, EMBG: c.embg || '', MESTO: c.mesto || '' };
   // function replacer: names containing "$&" / "$1" must not be interpreted as replacement patterns
@@ -284,4 +300,4 @@ function fileNameFor(c, pattern) {
   return safeFileName(name) + '.docx';
 }
 
-module.exports = { Template, buildValues, fillXml, previewParagraphs, fileNameFor, safeFileName, mergeSplitPlaceholders };
+module.exports = { Template, buildValues, fillXml, previewParagraphs, fileNameFor, safeFileName, mergeSplitPlaceholders, patternProblem, uniqueFileName };
