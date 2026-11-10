@@ -63,6 +63,8 @@ app.on('browser-window-created', (_e, win) => {
       check('simple: no "Од папка…" button', !ui.folderBtn);
       check('simple: the extra options start closed', ui.adv === false, String(ui.adv));
       check('simple: the header only has "Историја"', JSON.stringify(ui.header) === '["Историја"]', JSON.stringify(ui.header));
+      const sideW = await js(`Math.round(document.querySelector('.sidebar').getBoundingClientRect().width)`);
+      check('the left panel is wide (at least 400 px), the table does not dominate', sideW >= 400, `${sideW} px`);
       const n = await loadSamples();
       const view = await js(`({ cols: [...document.querySelectorAll('#thead > div')].map((d) => d.textContent.trim()),
         cards: document.querySelectorAll('#stats .stat').length, sel: S.selected.size, withItems: S.cases.filter((c) => c.items.length).length,
@@ -89,7 +91,11 @@ app.on('browser-window-created', (_e, win) => {
         const c = document.querySelector('#optCombined'); c.checked = true; c.dispatchEvent(new Event('change')); 0`);
       await wait(1600); // the session is saved after 1.2 s
       const before = readJson(settingsFile) || {};
-      check('settings are remembered', before.outDir === outDir && !!before.template_standard && before.mode === 'embg', JSON.stringify(before));
+      check('only the theme is carried to the next start', !('outDir' in before) && !('template_standard' in before)
+        && !('template_embg' in before) && !('pattern' in before) && !('mode' in before) && before.theme === 'dark', JSON.stringify(before));
+      const next = await js('api.init()');
+      check('every start is empty: no templates, no output folder', !next.templates.standard && !next.templates.embg && next.defaultOut === '',
+        JSON.stringify({ t: next.templates, out: next.defaultOut }));
       check('the session is remembered', fs.existsSync(sessionFile));
       check('a changed hidden option is flagged on "Повеќе опции"', (await js(`document.querySelector('#advNote').textContent`)) === '· изменети');
 
@@ -114,7 +120,36 @@ app.on('browser-window-created', (_e, win) => {
       check('restore defaults: the next start is a fresh install again', !again.templates.standard && !again.templates.embg && again.defaultOut === '',
         JSON.stringify({ t: again.templates, out: again.defaultOut }));
 
-      // 4. clear everything: also the loaded data and the remembered session
+      // 4. key column (клучна колона): only with two or more tables, right under the tables
+      await loadSamples();
+      const k = await js(`({ shown: !document.querySelector('#keyPanel').hidden,
+        under: document.querySelector('#keyPanel').previousElementSibling === document.querySelector('#dataPanel'),
+        opts: [...document.querySelectorAll('#keySel option')].map((o) => o.textContent.trim()) })`);
+      check('two tables: the key column selector is shown right under the tables', k.shown && k.under, JSON.stringify(k));
+      check('two tables: it lists the columns both tables have', JSON.stringify(k.opts.slice(1)) === '["Тужба број","Шифра коминтент"]', JSON.stringify(k.opts));
+      const itemsOf = `S.cases.reduce((s, c) => s + c.items.length, 0)`;
+      const itemsAuto = await js(itemsOf);
+      await js(`const ks = document.querySelector('#keySel'); ks.value = 'field:sifra'; ks.dispatchEvent(new Event('change')); 0`);
+      await until(`S.key === 'field:sifra' && !document.querySelector('#fileList .spinner')`);
+      check('choosing a key column joins the tables on it', (await js(itemsOf)) > itemsAuto, `${await js(itemsOf)} vs ${itemsAuto}`);
+      await js(`(async () => { S.filePaths = S.filePaths.filter((p) => !/Ставки/.test(p)); await reload(); return 0; })()`);
+      const one = await js(`({ shown: !document.querySelector('#keyPanel').hidden, sel: S.selected.size, cases: S.cases.length,
+        errs: S.cases.filter((c) => c.warnings.some((w) => w.level === 'error')).length, key: S.key })`);
+      check('one table: no key column selector', !one.shown, JSON.stringify(one));
+      check('one table: it is the whole source (every case selected, no "no invoices" error)', one.cases > 0 && one.sel === one.cases && one.errs === 0, JSON.stringify(one));
+
+      // 5. generation never overwrites its own documents (regression: the pattern "NPN_{2}")
+      await loadSamples();
+      const ids = await js('S.cases.slice(0, 12).map((c) => c.id)');
+      const genDir = path.join(tmp, 'gen');
+      const genOpts = (pattern) => JSON.stringify({ ids, outDir: genDir, pattern, mode: 'auto', overwrite: true, combined: false, pdf: false, report: false, datum: '' });
+      await js(`api.generate(${genOpts('NPN')})`);
+      const docs = fs.existsSync(genDir) ? fs.readdirSync(genDir).filter((f) => f.endsWith('.docx')) : [];
+      check('a file-name pattern without a unique field still writes one file per document', docs.length === ids.length, `${docs.length} files for ${ids.length}`);
+      const refused = await js(`api.generate(${genOpts('NPN_{2}')}).then((r) => r.refused || 'ran', (e) => 'threw: ' + (e.message || e))`);
+      check('a file-name pattern with an unknown field is refused', /\{2\}/.test(refused), refused);
+
+      // 6. clear everything: also the loaded data and the remembered session
       await js(`setOutDir(${JSON.stringify(outDir)}); 0`);
       await wait(1600);
       check('the session is saved again before clearing', fs.existsSync(sessionFile));

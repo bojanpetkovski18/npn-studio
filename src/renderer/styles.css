@@ -108,7 +108,7 @@ input, select { font: inherit; color: inherit; }
 /* ============ Layout ============ */
 .layout {
   display: grid;
-  grid-template-columns: 320px 1fr auto;
+  grid-template-columns: 440px 1fr auto; /* a wide left side: the steps, not the data, lead (D-017) */
   gap: 12px;
   padding: 0 12px;
   min-height: 0;
@@ -246,6 +246,8 @@ details.advanced > summary::before { content: "▸"; color: var(--text-3); trans
 details.advanced[open] > summary::before { transform: rotate(90deg); }
 details.advanced[open] > summary { margin-bottom: 6px; }
 details.advanced .adv-note { color: var(--warn); font-weight: 550; }
+.panel-hint { margin: 6px 2px 0; font-size: 12px; color: var(--text-3); }
+.panel-hint.warn { color: var(--warn); }
 .empty-steps { text-align: left; margin: 4px auto 18px; padding-left: 22px; font-size: 14px; line-height: 1.9; color: var(--text-2); }
 
 .toolbar { display: flex; gap: 10px; align-items: center; }

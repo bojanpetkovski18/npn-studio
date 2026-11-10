@@ -10,7 +10,7 @@ const XLSX = require('xlsx');
 const { applyOverride: applyOverrideCore, applyOverrides, templateKind, reportRow } = require('./core/cases');
 const { loadAll } = require('./core/node');
 const { enrich } = require('./core/analyze');
-const { Template, buildValues, previewParagraphs, fileNameFor, safeFileName } = require('./core/docx');
+const { Template, buildValues, previewParagraphs, fileNameFor, safeFileName, patternProblem, uniqueFileName } = require('./core/docx');
 
 app.setName('Nalogix');
 // a separate settings folder (tests, support); it also gets its own single-instance lock
@@ -29,7 +29,14 @@ const userFile = (n) => path.join(app.getPath('userData'), n);
 function readJson(file, fallback) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; } }
 function writeJson(file, data) { try { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(data, null, 2)); } catch {} }
 const readSettings = () => readJson(userFile('settings.json'), {});
-function writeSettings(patch) { const s = { ...readSettings(), ...patch }; writeJson(userFile('settings.json'), s); return s; }
+// the only things remembered between starts: the look, the recent projects and where dialogs open (D-017)
+const PERSISTED = ['theme', 'recent', 'lastDataDir'];
+function writeSettings(patch) {
+  const s = { ...readSettings() };
+  for (const [k, v] of Object.entries(patch)) if (PERSISTED.includes(k)) s[k] = v;
+  writeJson(userFile('settings.json'), s);
+  return s;
+}
 
 /** Folder the .exe lives in (portable build extracts to temp, so use the env var it sets). */
 function appDir() {
@@ -95,7 +102,7 @@ function caseSummary(c) {
     id: c.id, broj: c.broj, godina: c.godina, serija: c.serija, sifra: c.sifra, ime: c.ime, adresa: c.adresa,
     embg: c.embg, vkupenDolg: c.vkupenDolg, tekovna: c.tekovna, notarNagrada: c.notarNagrada,
     notarTrosok: c.notarTrosok, materijal: c.materijal, advokat: c.advokat, vkupnoTroshoci: c.vkupnoTroshoci,
-    zbirStavki: c.zbirStavki, warnings: c.warnings, source: c.source,
+    zbirStavki: c.zbirStavki, warnings: c.warnings, source: c.source, itemsExpected: c.itemsExpected !== false,
     tip: c.tip, mesto: c.mesto, edb: c.edb, embgInfo: c.embgInfo,
     edited: c._orig ? Object.keys(state.overrides.get(c.id) || {}) : [],
     orig: c._orig || null,
@@ -112,7 +119,6 @@ function pickTemplate(c, mode) {
 async function loadTemplate(kind, filePath) {
   const t = await Template.load(filePath);
   state.templates[kind] = t;
-  writeSettings({ [`template_${kind}`]: filePath });
   return templateInfo(kind);
 }
 function templateInfo(kind) {
@@ -204,18 +210,16 @@ function writeXlsx(file, rows, sheetName) {
 
 // ---------- IPC: app ----------
 ipcMain.handle('app:init', async () => {
-  const s = readSettings();
+  // every start is empty: templates, output folder and options are chosen by hand each time (D-017).
+  // Settings from older versions (templates, folder, file-name pattern…) are dropped here.
+  const old = readSettings();
+  const s = Object.fromEntries(PERSISTED.filter((k) => k in old).map((k) => [k, old[k]]));
+  if (Object.keys(old).length !== Object.keys(s).length) writeJson(userFile('settings.json'), s);
+  state.templates = { standard: null, embg: null };
   const dir = appDir();
-  const tryLoad = async (kind, candidates) => {
-    for (const p of candidates) if (p && fs.existsSync(p)) { try { return await loadTemplate(kind, p); } catch {} }
-    return null;
-  };
-  // only what the user chose earlier: a fresh install starts with no templates and no output folder
-  await tryLoad('standard', [s.template_standard]);
-  await tryLoad('embg', [s.template_embg]);
   const session = readJson(userFile('session.json'), null);
   return {
-    settings: s, appDir: dir, defaultOut: s.outDir || '',
+    settings: s, appDir: dir, defaultOut: '',
     templates: { standard: templateInfo('standard'), embg: templateInfo('embg') },
     version: app.getVersion(),
     mica: MICA,
@@ -284,30 +288,30 @@ ipcMain.handle('shell:show', (_e, p) => shell.showItemInFolder(p));
 
 // ---------- IPC: data ----------
 /** Runs loadAll in a worker thread (falls back to in-process if workers are unavailable). */
-function loadAllAsync(filePaths) {
+function loadAllAsync(filePaths, opts = {}) {
   // spawning a worker costs ~200 ms, so small inputs are parsed in-process (they take < 300 ms anyway)
   const bytes = filePaths.reduce((s, f) => { try { return s + fs.statSync(f).size; } catch { return s; } }, 0);
-  if (bytes < 3 * 1024 * 1024) return Promise.resolve().then(() => loadAll(filePaths));
+  if (bytes < 3 * 1024 * 1024) return Promise.resolve().then(() => loadAll(filePaths, opts));
   return new Promise((resolve, reject) => {
     let w;
     try {
       // inside app.asar the worker script must be read through Electron's asar-aware fs, which Worker supports
-      w = new Worker(path.join(__dirname, 'core', 'worker.js'), { workerData: { filePaths } });
-    } catch { try { return resolve(loadAll(filePaths)); } catch (e) { return reject(e); } }
+      w = new Worker(path.join(__dirname, 'core', 'worker.js'), { workerData: { filePaths, opts } });
+    } catch { try { return resolve(loadAll(filePaths, opts)); } catch (e) { return reject(e); } }
     w.once('message', (m) => (m.ok ? resolve(m.result) : reject(new Error(m.error))));
-    w.once('error', () => { try { resolve(loadAll(filePaths)); } catch (e) { reject(e); } });
+    w.once('error', () => { try { resolve(loadAll(filePaths, opts)); } catch (e) { reject(e); } });
   });
 }
 
-ipcMain.handle('data:load', async (_e, filePaths, overrides) => {
+ipcMain.handle('data:load', async (_e, filePaths, overrides, key = 'auto') => {
   if (state.running) throw new Error('Почекајте да заврши генерирањето');
-  const res = await loadAllAsync(filePaths);
+  const res = await loadAllAsync(filePaths, { key });
   state.cases = new Map(res.cases.map((c) => [c.id, c]));
   state.overrides = new Map();
   const applied = applyOverrides(state.cases, state.overrides, overrides);
   return {
     files: res.files, cases: [...state.cases.values()].map(caseSummary), itemCount: res.itemCount,
-    duplicatesSkipped: res.duplicatesSkipped, overridesApplied: applied,
+    duplicatesSkipped: res.duplicatesSkipped, overridesApplied: applied, keyOptions: res.keyOptions, key: res.key,
   };
 });
 
@@ -391,6 +395,10 @@ ipcMain.handle('history:get', () => readJson(userFile('history.json'), []));
 ipcMain.handle('gen:cancel', () => { state.cancel = true; });
 ipcMain.handle('gen:run', async (_e, opts) => {
   if (state.running) throw new Error('Генерирањето веќе е во тек');
+  // refuse before anything is written: an unknown {FIELD} once named every document the same (D-017).
+  // A refusal is an answer for the user, not an error, so it is returned rather than thrown.
+  const refused = patternProblem(opts.pattern) || (!opts.outDir ? 'Изберете каде да се зачуваат документите' : null);
+  if (refused) return { refused };
   state.running = true;
   try { return await runGeneration(opts); } finally { state.running = false; }
 });
@@ -404,7 +412,7 @@ async function runGeneration(opts) {
   const written = [];
   const combinedXml = { standard: [], embg: [] };
   const started = Date.now();
-  const usedNames = new Set();
+  const usedNames = new Map(); // folder -> names already used in this run (lower case)
 
   for (let i = 0; i < ids.length; i++) {
     if (state.cancel) break;
@@ -416,10 +424,10 @@ async function runGeneration(opts) {
       if (!tpl) throw new Error('Нема шаблон');
       const dir = path.join(outDir, safeDir(SUBFOLDER[subfolder] ? SUBFOLDER[subfolder](c, tpl) : ''));
       fs.mkdirSync(dir, { recursive: true });
-      let name = fileNameFor(c, pattern);
-      const key = path.join(dir, name).toLowerCase();
-      if (usedNames.has(key)) name = name.replace(/\.docx$/, `_${c.godina || i}.docx`);
-      usedNames.add(path.join(dir, name).toLowerCase());
+      // never two documents of one run in the same file: "NPN.docx", "NPN (2).docx", "NPN (3).docx"…
+      const dirKey = dir.toLowerCase();
+      if (!usedNames.has(dirKey)) usedNames.set(dirKey, new Set());
+      const name = uniqueFileName(fileNameFor(c, pattern), usedNames.get(dirKey));
       const file = path.join(dir, name);
       row.file = file;
       if (!overwrite && fs.existsSync(file)) { row.status = 'skipped'; row.message = 'Веќе постои'; }

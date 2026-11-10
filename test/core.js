@@ -24,6 +24,42 @@ assert.strictEqual(placeOf('УЛ. 3 БР.ББ'), 'Непознато');
 // file names
 assert.strictEqual(safeFileName('ДРУШТВО Д.О.О.'), 'ДРУШТВО Д.О.О');
 assert.strictEqual(safeFileName('CON'), '_CON');
+
+// file names: an unknown field is refused, and no two documents of one run may share a name
+// (regression: the pattern "NPN_{2}" gave every document the same name and each one overwrote the last)
+{
+  const { patternProblem, uniqueFileName } = require('../src/core/docx');
+  assert.ok(/\{2\}/.test(patternProblem('NPN_{2}') || ''), 'an unknown field in the file-name pattern is refused');
+  assert.strictEqual(patternProblem('NPN_{BROJ}_{IME}'), null);
+  assert.strictEqual(patternProblem(''), null, 'empty = the default pattern');
+  const taken = new Set();
+  assert.deepStrictEqual(['A.docx', 'A.docx', 'a.docx', 'A.docx'].map((n) => uniqueFileName(n, taken)),
+    ['A.docx', 'A (2).docx', 'a (3).docx', 'A (4).docx'], 'names stay unique, case-insensitively (Windows)');
+}
+
+// key column (клучна колона): the columns both tables share, and joining on the one the user picks
+{
+  const { loadFiles } = require('../src/core/excel');
+  const inputs = files.map((f) => ({ name: f, data: fs.readFileSync(f) }));
+  const items = (r) => r.cases.reduce((s, c) => s + c.items.length, 0);
+  const auto = loadFiles(inputs);
+  if (dir.endsWith('samples')) {
+    // "Година" is in both tables but would match every invoice to every case of that year, so it is not offered
+    assert.deepStrictEqual(auto.keyOptions.map((o) => o.label), ['Тужба број', 'Шифра коминтент'], 'columns present in both tables that identify a case');
+    const bySifra = loadFiles(inputs, { key: 'field:sifra' });
+    assert.ok(bySifra.cases.some((c) => c.items.length > auto.cases.find((a) => a.id === c.id).items.length), 'a shared customer code pulls in more invoices');
+  }
+  assert.strictEqual(auto.key, 'auto');
+  assert.strictEqual(items(loadFiles(inputs, { key: 'field:broj' })), items(auto), 'joining on Тужба број alone finds the same invoices here');
+  const bad = loadFiles(inputs, { key: 'col:no such column' });
+  assert.strictEqual(bad.key, 'auto', 'an unknown key falls back to automatic');
+  assert.strictEqual(items(bad), items(auto));
+  // one table is the whole source: no "no invoices" error, nothing to choose
+  const listOnly = inputs.filter((i) => loadFiles([i]).files[0].kind === 'list');
+  const one = loadFiles(listOnly);
+  assert.ok(one.cases.length > 0 && one.cases.every((c) => !c.warnings.some((w) => /Нема ставки/.test(w.text))), 'one table: no "Нема ставки" error');
+  assert.deepStrictEqual(one.keyOptions, [], 'one table: no key column to choose');
+}
 // file and template names shown in the UI are base names on every OS (regression: Windows paths were shown whole)
 {
   const { loadFiles } = require('../src/core/excel');

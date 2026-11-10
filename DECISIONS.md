@@ -85,3 +85,14 @@ Numbered, never renumbered. Each entry: date, decision, why, alternatives, trade
 **Why:** owner feedback from users: too many fields and too much information; a lawyer needs simple checks, not statistics.
 **Alternatives:** delete the advanced features (loses them for power users); a separate "simple mode" switch (two layouts to explain and test).
 **Trade-offs:** the default selection changes (sample data: 239 of 240 instead of 222); a saved session keeps its old rules, which the "· изменети" note makes visible. The mobile app is unchanged. The demo video and README screenshots show the old layout until they are re-recorded (milestone 2).
+
+### D-017 · 2026-11-10 · Every start is empty; key column; one table is a source; no overwritten documents
+**Decision:**
+- Every start is empty: no templates, no output folder, every option at its default. Only the theme, the recent-projects list and the last folder a dialog opened are saved; older saved settings are dropped at start.
+- With two or more tables, **Клучна колона** appears right under the tables: the column the tables are joined on. Automatic (Тужба број + Година) is the default and gives the same output as before. Offered are the columns all tables have (matched by meaning, e.g. "Шифра коминтент" = "Шифра на коминтент") that identify a case (at least half of the list rows have their own value).
+- One table on its own is the whole source: no "Нема ставки" error and nothing skipped.
+- A file-name pattern with an unknown field is refused before anything is written, and no two documents of one run share a file name.
+- The left panel is 440 px wide.
+**Why:** an owner's run of 1 179 documents left 4 files on disk: the saved pattern `NPN_{2}` named every document the same and each overwrote the last (the old "add the year" fallback only avoided the second collision). Remembered options kept that pattern across starts. Users also need one table for some clients and a chosen key for others.
+**Alternatives:** remember options but validate them (a bad option still reappears after a restart); offer every shared column as a key ("Година" alone matched 10.8 million invoice pairs on real data).
+**Trade-offs:** templates and the output folder are chosen on every start; the last session can still be resumed from the start screen.

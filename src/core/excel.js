@@ -105,6 +105,7 @@ function parseList(sheet) {
       materijal: num(get(r, 'materijal')),
       advokat: num(get(r, 'advokat')),
       source: sheet.name,
+      _raw: r, // removed after the key column is read
     });
   }
   return out;
@@ -127,35 +128,91 @@ function parseItems(sheet) {
       valuta: get(r, 'valuta'),
       faktura: text(get(r, 'faktura')),
       iznos: num(get(r, 'iznos')),
+      _raw: r,
     });
   }
   return out;
 }
 
+// fields that mean the same thing in both tables even when the headers are worded differently
+const KEY_FIELDS = ['broj', 'godina', 'sifra'];
+const fieldOf = (h, fields) => Object.keys(fields).find((k) => fields[k].includes(norm(h)));
+
+/**
+ * The key columns (клучна колона) a user can join the tables on: every column present in all loaded tables,
+ * in the order of the first list. Known fields match by meaning ("Шифра коминтент" = "Шифра на коминтент");
+ * any other column must have the same header in every table. Only columns that identify a case are offered
+ * (at least half of the list rows have their own value): "Година" would match every invoice to every case of
+ * that year (10.8 million pairs on a real 1 179-case list). Empty unless both kinds of table are loaded.
+ * listGroups / itemGroups: [{ sheet, rows }] with rows still carrying `_raw`.
+ */
+function keyOptionsFor(listGroups, itemGroups) {
+  if (!listGroups.length || !itemGroups.length) return [];
+  const all = [...listGroups, ...itemGroups].map((g) => g.sheet);
+  const has = (sheet, value) => sheet.header.some((h) => (value.startsWith('field:')
+    ? fieldOf(h, sheet.kind === 'list' ? LIST_FIELDS : ITEM_FIELDS) === value.slice(6) : norm(h) === value.slice(4)));
+  const identifies = (value) => {
+    let rows = 0;
+    const seen = new Set();
+    for (const { sheet, rows: rs } of listGroups) {
+      const kv = keyValue(sheet, value);
+      for (const r of rs) { rows++; const v = kv(r, r._raw); if (v) seen.add(v); }
+    }
+    return rows > 0 && seen.size * 2 >= rows;
+  };
+  const out = [];
+  for (const h of listGroups[0].sheet.header) {
+    if (!norm(h)) continue;
+    const f = fieldOf(h, LIST_FIELDS);
+    const value = f ? (KEY_FIELDS.includes(f) ? `field:${f}` : null) : `col:${norm(h)}`;
+    if (value && !out.some((o) => o.value === value) && all.every((s) => has(s, value)) && identifies(value)) out.push({ value, label: String(h).trim() });
+  }
+  return out;
+}
+/** The join value of a row for the chosen key: a parsed field, or the cell under a column with that header. */
+function keyValue(sheet, key) {
+  if (key.startsWith('field:')) return (row) => String(row[key.slice(6)] || '').trim();
+  const i = sheet.header.findIndex((h) => norm(h) === key.slice(4));
+  return (row, raw) => (i === -1 ? '' : text(raw[i]));
+}
+
 /**
  * Loads any number of in-memory files ({ name, data, filePath?, error? }), auto-detects their kind and
  * returns joined + enriched cases. A file that fails is reported in `files[].error` and the rest still load.
+ * `key` = 'auto' (Тужба број + Година) or one of the returned `keyOptions` values; an unknown key falls back to 'auto'.
+ * With only list tables loaded, the list is the whole source (no invoices expected).
  */
-function loadFiles(inputs) {
+function loadFiles(inputs, { key = 'auto' } = {}) {
   const files = [];
-  const lists = [];
-  const items = [];
+  const listSheets = [];
+  const itemSheets = [];
   for (const input of inputs) {
     const filePath = input.filePath || input.name;
     if (input.error) { files.push({ filePath, name: baseName(input.name), kind: null, rows: 0, error: input.error }); continue; }
     try {
       const sheet = inspectData(input.data, input.name, filePath);
-      // (no spread-push: it overflows the call stack on very large sheets)
-      if (sheet.kind === 'list') for (const r of parseList(sheet)) lists.push(r);
-      else if (sheet.kind === 'items') for (const r of parseItems(sheet)) items.push(r);
+      // parse now so a file with missing columns is reported as that file's error
+      if (sheet.kind === 'list') listSheets.push({ sheet, rows: parseList(sheet) });
+      else if (sheet.kind === 'items') itemSheets.push({ sheet, rows: parseItems(sheet) });
       files.push({ filePath, name: sheet.name, kind: sheet.kind, rows: sheet.body.length,
         error: sheet.kind ? null : 'Не е препознаена како „Листа на тужби“ ниту „Ставки по тужби“' });
     } catch (err) {
       files.push({ filePath, name: baseName(input.name), kind: null, rows: 0, error: err.message || String(err) });
     }
   }
-  const cases = enrich(join(lists, items));
-  return { files, cases, itemCount: items.length, duplicatesSkipped: lists.length - cases.length };
+  const keyOptions = keyOptionsFor(listSheets, itemSheets);
+  const useKey = key !== 'auto' && keyOptions.some((o) => o.value === key) ? key : 'auto';
+  const lists = [];
+  const items = [];
+  // (no spread-push: it overflows the call stack on very large sheets)
+  for (const [group, out] of [[listSheets, lists], [itemSheets, items]]) {
+    for (const { sheet, rows } of group) {
+      const kv = useKey === 'auto' ? null : keyValue(sheet, useKey);
+      for (const r of rows) { if (kv) r._key = kv(r, r._raw); delete r._raw; out.push(r); }
+    }
+  }
+  const cases = enrich(join(lists, items, { byKey: useKey !== 'auto', itemsExpected: itemSheets.length > 0 }));
+  return { files, cases, itemCount: items.length, duplicatesSkipped: lists.length - cases.length, keyOptions, key: useKey };
 }
 
 module.exports = { inspectData, loadFiles, join, recompute, parseList, parseItems };
