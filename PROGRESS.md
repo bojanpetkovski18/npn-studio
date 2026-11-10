@@ -7,7 +7,8 @@
 | 0 | `#0-npn-implementation` | Shared engine, desktop app (Windows), mobile PWA, Android app, fictional samples, tests, CI | done – PR to `dev` |
 | 1 | `#0001-github-pages-deploy` | Publish the PWA (`mobile/dist`) on GitHub Pages over HTTPS; verify install + offline on a real phone | next – waits for the owner's Pages site |
 | 2 | `#0002-demo-and-portfolio` | README screenshots in both themes, portfolio kit, release notes | planned |
-| 3 | `#0003-fresh-install-defaults-and-reset` | Desktop: fresh install with no templates or output folder; "Врати почетни поставки" and "Исчисти сè"; a simple screen for lawyers (D-016); every start empty, key column, one-table source, no overwritten documents (D-017) | done – PR to `dev` |
+| 3 | `#0003-fresh-install-defaults-and-reset` | Desktop: fresh install with no templates or output folder; "Врати почетни поставки" and "Исчисти сè"; a simple screen for lawyers (D-016) | merged, released as v2.2.0 |
+| 4 | `#0004-fix-overwrites-start-empty-key-column` | Fix: documents overwritten by an invalid file-name pattern; every start empty; Клучна колона; one table as the whole source; wider left panel (D-017); v2.2.1 | done – PR to `dev` |
 
 ## Measured results
 
