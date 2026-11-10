@@ -51,8 +51,11 @@ Windows installers: `npm run dist` → `dist/Nalogix-Setup.exe` (installs per us
 The screen is built for a lawyer in a hurry: three steps on the left, one status line, a table of number, debtor,
 debt and status, and one **Генерирај** button.
 
-1. **Табели** → add both Excel files from `samples/` (240 cases, 1 377 invoices); **Шаблони** → pick
-   `template.docx` and `template_NPN_EMBG.docx`. Every case with invoices is selected: 239 of 240.
+1. **Табели** → add both Excel files from `samples/` (240 cases, 1 377 invoices). With two or more tables,
+   **Клучна колона** appears right under them: the column the tables are joined on (automatic = Тужба број +
+   Година; only columns both tables have and that identify a case are offered). One table on its own is the whole
+   source. **Шаблони** → pick `template.docx` and `template_NPN_EMBG.docx`. Every case with invoices is selected:
+   239 of 240.
 2. The status line says **5 тужби треба да се проверат**; **Прикажи ги** shows only those, each with its reason
    under the name: two invoice sums that do not match, one case without invoices, two cases sharing a customer code.
 3. Click any case: **Документ** shows the filled template; **Уреди** corrects a field; **Проверки** decodes the ЕМБГ.
@@ -62,7 +65,9 @@ Everything else (template mode, a minimum debt, file names, subfolders, print do
 under the closed **Повеќе опции**, which shows "· изменети" when something there differs from the defaults. The
 command palette (Ctrl+K) still has projects, the analytics view and the Excel export.
 
-A fresh install starts with no templates and no output folder. **Врати почетни поставки** (bottom of the left
+Every start is empty: no templates, no output folder and every option at its default; only the theme is
+remembered. A file-name pattern with an unknown field (for example `NPN_{2}`) is refused, and two documents of one
+run never share a file name ("NPN.docx", "NPN (2).docx"…). **Врати почетни поставки** (bottom of the left
 panel) returns every setting to that state and keeps the loaded tables; **Исчисти сè** also unloads the data and
 forgets the last session. Both ask first, keep the theme and never delete generated documents.
 

@@ -6,9 +6,11 @@ const { enrich } = require('./analyze');
 
 /**
  * Joins list rows with their invoice items and computes totals + validation warnings.
- * Items are matched on "Тужба број" (+ "Година" when both files have it).
+ * Items are matched on "Тужба број" (+ "Година" when both files have it), or, with `byKey`, on the `_key` value
+ * of the key column the user chose. `itemsExpected: false` (only one table loaded) means the list alone is the
+ * source, so a case without invoices is not an error.
  */
-function join(listRows, itemRows) {
+function join(listRows, itemRows, { byKey = false, itemsExpected = true } = {}) {
   // exact (број+година) index, plus a per-number index used only when one side has no year
   const exact = new Map();
   const byNum = new Map();
@@ -19,7 +21,16 @@ function join(listRows, itemRows) {
     if (!byNum.has(it.broj)) byNum.set(it.broj, []);
     byNum.get(it.broj).push(it);
   }
+  const byKeyIndex = new Map();
+  if (byKey) {
+    for (const it of itemRows) {
+      if (!it._key) continue;
+      if (!byKeyIndex.has(it._key)) byKeyIndex.set(it._key, []);
+      byKeyIndex.get(it._key).push(it);
+    }
+  }
   const itemsFor = (row) => {
+    if (byKey) return row._key ? byKeyIndex.get(row._key) || [] : [];
     const hit = exact.get(`${row.broj}|${row.godina || ''}`);
     if (hit) return hit;
     const all = byNum.get(row.broj) || [];
@@ -42,7 +53,7 @@ function join(listRows, itemRows) {
     const uniq = new Map();
     for (const it of items) uniq.set(`${it.faktura}|${it.iznos}|${it.ddo}`, it);
     items = [...uniq.values()].sort((a, b) => dateKey(a.ddo) - dateKey(b.ddo));
-    return recompute({ ...row, id: `${row.broj}|${row.godina}`, items, warnings: [] });
+    return recompute({ ...row, id: `${row.broj}|${row.godina}`, items, itemsExpected, warnings: [] });
   });
 }
 
@@ -51,7 +62,7 @@ function recompute(c) {
   c.zbirStavki = c.items.reduce((s, it) => s + it.iznos, 0);
   c.vkupnoTroshoci = c.advokat + c.notarTrosok + c.notarNagrada + c.materijal + c.tekovna;
   const warnings = (c.warnings || []).filter((w) => w.derived);
-  if (!c.items.length) warnings.push({ level: 'error', text: 'Нема ставки (фактури) за оваа тужба' });
+  if (!c.items.length) { if (c.itemsExpected !== false) warnings.push({ level: 'error', text: 'Нема ставки (фактури) за оваа тужба' }); }
   else if (Math.abs(c.zbirStavki - c.vkupenDolg) > 0.005) {
     const diff = c.vkupenDolg - c.zbirStavki;
     warnings.push({ level: 'warn', text: `Збирот на фактурите (${c.zbirStavki.toFixed(2)}) се разликува од вкупниот долг за ${diff.toFixed(2)}` });

@@ -14,8 +14,8 @@ function readInput(filePath) {
 }
 
 /** Reads the given paths from disk and loads them (same result shape as loadFiles). */
-function loadAll(filePaths) {
-  return loadFiles(filePaths.map(readInput));
+function loadAll(filePaths, opts) {
+  return loadFiles(filePaths.map(readInput), opts);
 }
 
 module.exports = { loadAll, readInput };

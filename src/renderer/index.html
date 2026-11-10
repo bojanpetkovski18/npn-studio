@@ -29,13 +29,20 @@
   <div class="layout">
     <!-- ======= Sidebar ======= -->
     <aside class="sidebar">
-      <section class="panel">
+      <section class="panel" id="dataPanel">
         <div class="panel-head"><span class="step">1</span><h2>Табели</h2></div>
         <div class="dropzone" id="dropzone" tabindex="0">
           <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <div><strong>Додадете ги двете Excel табели</strong><br/><span>„Листа на тужби“ и „Ставки по тужби“</span></div>
+          <div><strong>Додадете ги Excel табелите</strong><br/><span>една табела, или „Листа на тужби“ и „Ставки по тужби“</span></div>
         </div>
         <ul class="file-list" id="fileList"></ul>
+      </section>
+
+      <!-- only with two or more tables: the column the tables are joined on -->
+      <section class="panel" id="keyPanel" hidden>
+        <div class="panel-head"><h2>Клучна колона</h2></div>
+        <select id="keySel" class="inp"></select>
+        <p class="panel-hint" id="keyHint">Колоната по која се поврзуваат табелите.</p>
       </section>
 
       <section class="panel">
